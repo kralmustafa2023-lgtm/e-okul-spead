@@ -136,9 +136,6 @@
 </head>
 <body class="text-slate-800 min-h-screen selection:bg-blue-600 selection:text-white overflow-x-hidden bg-slate-50">
 
-  <!-- Gerçek Kum Tanecikleri Canvas (Arka Planda Süzülen Kum) -->
-  <canvas id="sand-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
-
   <!-- DYNAMIC AMBIENT LIGHTING BACKGROUND (Chic, Fresh, Modern) -->
   <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
     <!-- Soft Sky/Cyan orb top-left -->
@@ -1012,143 +1009,8 @@
       requestAnimationFrame(update);
     }
 
-    // ==========================================
-    // GERÇEKÇİ ARKA PLAN KUM TANECİKLERİ SİSTEMİ
-    // ==========================================
-    function setupSandParticleEffect() {
-      const canvas = document.getElementById('sand-canvas');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      let width = canvas.width = window.innerWidth;
-      let height = canvas.height = window.innerHeight;
-
-      window.addEventListener('resize', () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-      });
-
-      // Gerçek çöl, altın kuvars ve ince kum renkleri
-      const sandColors = [
-        '#d97706', // Sıcak kehribar
-        '#f59e0b', // Altın kum
-        '#eab308', // Doğal çöl kumu
-        '#fbbf24', // Güneş parıltısı
-        '#fde047', // Açık kuvars tanesi
-        '#ca8a04', // Zengin kumsal tonu
-        '#b45309', // Toprak minerali
-        '#fef08a', // Parlayan silika
-        '#e2b866'  // İnce sahil kumu
-      ];
-
-      const particles = [];
-      const MAX_PARTICLES = 1600; // Ekranda kalıcı biriken kum kapasitesi
-      let lastX = -100;
-      let lastY = -100;
-
-      class SandGrain {
-        constructor(x, y, vx, vy, color, size) {
-          this.x = x;
-          this.y = y;
-          this.vx = vx;
-          this.vy = vy;
-          this.color = color;
-          this.size = size;
-          this.isSettled = false;
-          this.alpha = Math.random() * 0.35 + 0.65; // Kalıcı ve net kum görünümü
-        }
-
-        update() {
-          if (this.isSettled) {
-            // Tabanda biriken kumun minik doğal yayılması
-            if (Math.random() < 0.05) {
-              this.x += (Math.random() - 0.5) * 0.4;
-            }
-            return;
-          }
-
-          this.x += this.vx;
-          this.y += this.vy;
-
-          // Gerçek kum yerçekimi ve hava direnci
-          this.vy += 0.09;
-          this.vx *= 0.98;
-          this.vx += (Math.random() - 0.5) * 0.04;
-
-          // Ekran tabanına ulaştığında kum tanesi birikir, kaybolmaz
-          if (this.y >= height - 6) {
-            this.y = height - 6 + (Math.random() * 4);
-            this.vy = 0;
-            this.vx = (Math.random() - 0.5) * 0.3;
-            this.isSettled = true;
-          }
-        }
-
-        draw(ctx) {
-          ctx.save();
-          ctx.globalAlpha = this.alpha;
-          ctx.fillStyle = this.color;
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      }
-
-      function dropSand(x, y, count = 4) {
-        for (let i = 0; i < count; i++) {
-          // Kapasite dolduğunda en eski taban taneciği silinir, kum döngüsü devam eder
-          if (particles.length >= MAX_PARTICLES) {
-            particles.shift();
-          }
-
-          const color = sandColors[Math.floor(Math.random() * sandColors.length)];
-          const size = Math.random() * 0.9 + 0.85; // Gerçek mikro kum tanesi boyutu (0.85px - 1.75px)
-          const angle = Math.random() * Math.PI * 2;
-          const spread = Math.random() * 3.5;
-          const px = x + Math.cos(angle) * spread;
-          const py = y + Math.sin(angle) * spread;
-
-          const vx = (Math.random() - 0.5) * 1.6;
-          const vy = Math.random() * 1.8 + 0.4; // Aşağı dökülen kum akışı
-
-          particles.push(new SandGrain(px, py, vx, vy, color, size));
-        }
-      }
-
-      // Fareyi hareket ettirdikçe parmak arasından dökülen kum gibi akar
-      window.addEventListener('mousemove', (e) => {
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
-        const dist = Math.hypot(mouseX - lastX, mouseY - lastY);
-
-        if (dist > 2) {
-          dropSand(mouseX, mouseY, Math.min(5, Math.floor(dist / 3) + 1));
-          lastX = mouseX;
-          lastY = mouseY;
-        }
-      }, { passive: true });
-
-      // Animasyon Render Döngüsü (Arka planda kesintisiz 60fps)
-      function loop() {
-        ctx.clearRect(0, 0, width, height);
-
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          p.update();
-          p.draw(ctx);
-        }
-
-        requestAnimationFrame(loop);
-      }
-
-      loop();
-    }
-
     // Sayfa açıldığında oturumu kontrol et ve animasyonları başlat
     document.addEventListener('DOMContentLoaded', async () => {
-      // Gerçekçi arka plan kum tanecikleri
-      setupSandParticleEffect();
-
       // Sayaç animasyonunu kur
       setupCountUpAnimations();
 
