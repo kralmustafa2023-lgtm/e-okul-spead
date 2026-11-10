@@ -11,7 +11,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
 
-  <!-- Tailwind CSS CDN with plugins -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/styles.css">
   
@@ -23,7 +23,8 @@
   <style>
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #070b19;
+      background-color: #f8fafc;
+      color: #0f172a;
     }
 
     /* Ambient animated mesh gradients */
@@ -40,7 +41,7 @@
     }
 
     @keyframes soundBarPulse {
-      0%, 100% { height: 8px; opacity: 0.5; }
+      0%, 100% { height: 8px; opacity: 0.6; }
       50% { height: 38px; opacity: 1; }
     }
 
@@ -50,10 +51,10 @@
     }
 
     .animate-float-1 {
-      animation: floatSlow 12s ease-in-out infinite;
+      animation: floatSlow 14s ease-in-out infinite;
     }
     .animate-float-2 {
-      animation: floatReverse 15s ease-in-out infinite;
+      animation: floatReverse 16s ease-in-out infinite;
     }
 
     .bar-1 { animation: soundBarPulse 1.2s ease-in-out infinite 0.1s; }
@@ -74,13 +75,13 @@
       animation-play-state: paused;
     }
 
-    /* Glassmorphism custom classes */
+    /* Modern Light Glassmorphism Card */
     .glass-card {
-      background: rgba(13, 22, 46, 0.72);
+      background: rgba(255, 255, 255, 0.88);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
     }
 
     .glass-card-hover {
@@ -88,8 +89,8 @@
     }
     .glass-card-hover:hover {
       transform: translateY(-4px);
-      border-color: rgba(56, 189, 248, 0.4);
-      box-shadow: 0 20px 40px rgba(6, 182, 212, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.12);
     }
 
     /* Gradient border glow */
@@ -102,76 +103,72 @@
       inset: -1px;
       border-radius: inherit;
       padding: 1px;
-      background: linear-gradient(135deg, rgba(6, 182, 212, 0.6), rgba(99, 102, 241, 0.4), rgba(236, 72, 153, 0.3));
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.4), rgba(147, 51, 234, 0.3), rgba(6, 182, 212, 0.3));
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
       pointer-events: none;
     }
 
-    /* Counter gradient text */
     .stat-number {
       font-variant-numeric: tabular-nums;
     }
   </style>
 </head>
-<body class="text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden">
+<body class="text-slate-800 min-h-screen selection:bg-blue-600 selection:text-white overflow-x-hidden bg-slate-50">
 
-  <!-- DYNAMIC AMBIENT LIGHTING BACKGROUND -->
+  <!-- DYNAMIC AMBIENT LIGHTING BACKGROUND (Chic, Fresh, Modern) -->
   <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-    <!-- Cyan glow top-left -->
-    <div class="absolute -top-32 -left-32 w-[650px] h-[650px] bg-cyan-500/15 rounded-full blur-[140px] animate-float-1"></div>
-    <!-- Indigo/Violet glow top-right -->
-    <div class="absolute top-20 right-[-10%] w-[700px] h-[700px] bg-indigo-600/20 rounded-full blur-[160px] animate-float-2"></div>
-    <!-- Electric Emerald center -->
-    <div class="absolute top-[45%] left-[15%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] animate-float-1"></div>
-    <!-- Deep Fuchsia / Violet bottom -->
-    <div class="absolute bottom-[-10%] right-[15%] w-[600px] h-[600px] bg-fuchsia-600/10 rounded-full blur-[160px] animate-float-2"></div>
-    <!-- Subtle Grid Pattern -->
-    <div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
+    <!-- Soft Sky/Cyan orb top-left -->
+    <div class="absolute -top-32 -left-32 w-[650px] h-[650px] bg-sky-200/50 rounded-full blur-[140px] animate-float-1"></div>
+    <!-- Soft Indigo/Purple orb top-right -->
+    <div class="absolute top-10 right-[-10%] w-[700px] h-[700px] bg-indigo-200/40 rounded-full blur-[160px] animate-float-2"></div>
+    <!-- Soft Emerald orb middle-left -->
+    <div class="absolute top-[45%] left-[10%] w-[500px] h-[500px] bg-emerald-100/50 rounded-full blur-[150px] animate-float-1"></div>
+    <!-- Soft Blue orb bottom-right -->
+    <div class="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-blue-100/60 rounded-full blur-[160px] animate-float-2"></div>
+    <!-- Delicate Subtle Dot Matrix -->
+    <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-40"></div>
   </div>
 
   <!-- NAVBAR -->
-  <header class="border-b border-white/[0.08] bg-[#070b19]/80 backdrop-blur-2xl sticky top-0 z-50 transition-all">
+  <header class="border-b border-slate-200/80 bg-white/80 backdrop-blur-xl sticky top-0 z-50 transition-all shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
       
       <!-- Brand Logo -->
       <a href="#" class="flex items-center gap-3.5 group">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-cyan-500/30 group-hover:scale-105 transition-transform duration-300">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform duration-300">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"></path>
           </svg>
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="font-black text-xl text-white tracking-tight">e-Okul <span class="bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">Spead</span></span>
-            <span class="text-[10px] bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-cyan-300 font-bold px-2 py-0.5 rounded-full border border-cyan-400/30 shadow-[0_0_12px_rgba(6,182,212,0.3)]">v7.0 AI</span>
+            <span class="font-black text-xl text-slate-900 tracking-tight">e-Okul <span class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent">Spead</span></span>
+            <span class="text-[10px] bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200 shadow-sm">v7.0 AI</span>
           </div>
-          <p class="text-[11px] text-slate-400 font-medium">Sesli Öğretmen Not Asistanı</p>
+          <p class="text-[11px] text-slate-500 font-medium">Sesli Öğretmen Not Asistanı</p>
         </div>
       </a>
 
       <!-- Navigation Links -->
-      <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-slate-300">
-        <a href="#istatistikler" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          Canlı Veriler
+      <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-slate-600">
+        <a href="#istatistikler" class="hover:text-blue-600 transition-colors flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          Verimlilik
         </a>
-        <a href="#tanitim-rehberi" class="hover:text-cyan-400 transition-colors">Rehber & Adımlar</a>
-        <a href="#ogretmen-yorumlari" class="hover:text-cyan-400 transition-colors">Öğretmen Görüşleri</a>
-        <a href="#guvenlik" class="hover:text-cyan-400 transition-colors">Gizlilik & KVKK</a>
+        <a href="#tanitim-rehberi" class="hover:text-blue-600 transition-colors">Rehber & Adımlar</a>
+        <a href="#ogretmen-yorumlari" class="hover:text-blue-600 transition-colors">Öğretmen Görüşleri</a>
+        <a href="#guvenlik" class="hover:text-blue-600 transition-colors">Gizlilik & KVKK</a>
       </nav>
 
       <!-- CTA Button -->
       <div class="flex items-center gap-3">
-        <a href="#giris-alani" class="relative group inline-flex items-center justify-center p-0.5 overflow-hidden rounded-xl font-bold text-xs sm:text-sm text-white shadow-[0_0_25px_rgba(6,182,212,0.4)] hover:shadow-[0_0_35px_rgba(99,102,241,0.6)] transition-all">
-          <span class="w-full h-full bg-gradient-to-r from-cyan-500 via-indigo-600 to-violet-600 group-hover:from-cyan-400 group-hover:to-violet-500 absolute"></span>
-          <span class="relative px-5 py-2.5 transition-all ease-out bg-[#0b1226] rounded-[10px] group-hover:bg-opacity-0 flex items-center gap-2">
-            <span>Öğretmen Girişi</span>
-            <svg class="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-            </svg>
-          </span>
+        <a href="#giris-alani" class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all hover:scale-105 active:scale-95 gap-2">
+          <span>Öğretmen Girişi</span>
+          <svg class="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+          </svg>
         </a>
       </div>
 
@@ -187,66 +184,66 @@
         <div class="lg:col-span-7 space-y-7 text-center lg:text-left">
           
           <!-- Badge -->
-          <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold shadow-[0_0_20px_rgba(6,182,212,0.2)]">
-            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+          <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold shadow-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping"></span>
             <span>Öğretmenler İçin Sesle Akıllı Not Girişi & Aktarımı</span>
           </div>
 
           <!-- Hero Heading -->
-          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.12]">
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.14]">
             Sınav notlarını <br class="hidden sm:inline"/>
-            <span class="bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent underline decoration-cyan-400/30 decoration-wavy">konuşarak söyleyin</span>, <br/>
+            <span class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent">konuşarak söyleyin</span>, <br/>
             e-Okul'a anında aktarın!
           </h1>
 
           <!-- Subtitle -->
-          <p class="text-slate-300 text-base sm:text-lg max-w-2xl leading-relaxed">
+          <p class="text-slate-600 text-base sm:text-lg max-w-2xl leading-relaxed">
             Yüzlerce sınav kağıdını tek tek klavyeyle girmek için saatlerinizi harcamayın. Öğrenci numarasını ve soru puanlarını mikrofona arka arkaya okuyun; yapay zeka dinlesin, toplama hatalarını kontrol etsin ve tek tıkla e-Okul kutucuklarına doldursun.
           </p>
 
           <!-- Voice Equalizer Graphic Card -->
-          <div class="glass-card p-4 rounded-2xl flex items-center justify-between max-w-lg mx-auto lg:mx-0 border-cyan-500/20">
+          <div class="glass-card p-4 rounded-2xl flex items-center justify-between max-w-lg mx-auto lg:mx-0 border-blue-200/80 shadow-md">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/30">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
                 <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"></path>
                 </svg>
               </div>
               <div class="text-left">
-                <p class="text-xs font-bold text-white">Canlı Ses Algılama</p>
-                <p class="text-[11px] text-cyan-300 font-mono">"42 numara soru bir 15 soru iki 20..."</p>
+                <p class="text-xs font-bold text-slate-900">Canlı Ses Algılama</p>
+                <p class="text-[11px] text-blue-600 font-mono font-medium">"42 numara soru bir 15 soru iki 20..."</p>
               </div>
             </div>
 
             <!-- Animated equalizer bars -->
             <div class="flex items-end gap-1.5 h-10 px-2">
-              <span class="w-1.5 bg-cyan-400 rounded-full bar-1"></span>
-              <span class="w-1.5 bg-sky-400 rounded-full bar-2"></span>
-              <span class="w-1.5 bg-indigo-400 rounded-full bar-3"></span>
-              <span class="w-1.5 bg-violet-400 rounded-full bar-4"></span>
-              <span class="w-1.5 bg-cyan-300 rounded-full bar-5"></span>
-              <span class="w-1.5 bg-emerald-400 rounded-full bar-6"></span>
-              <span class="w-1.5 bg-sky-400 rounded-full bar-7"></span>
+              <span class="w-1.5 bg-blue-500 rounded-full bar-1"></span>
+              <span class="w-1.5 bg-sky-500 rounded-full bar-2"></span>
+              <span class="w-1.5 bg-indigo-500 rounded-full bar-3"></span>
+              <span class="w-1.5 bg-violet-500 rounded-full bar-4"></span>
+              <span class="w-1.5 bg-blue-600 rounded-full bar-5"></span>
+              <span class="w-1.5 bg-emerald-500 rounded-full bar-6"></span>
+              <span class="w-1.5 bg-sky-600 rounded-full bar-7"></span>
             </div>
           </div>
 
           <!-- Feature Bullets -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 text-sm text-slate-300 max-w-xl mx-auto lg:mx-0">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 text-sm text-slate-600 max-w-xl mx-auto lg:mx-0">
             <div class="flex items-center gap-2.5">
-              <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
-              <span>%100 Türkçe Fonetik Tanıma</span>
+              <div class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">✓</div>
+              <span class="font-medium text-slate-700">%100 Türkçe Fonetik Tanıma</span>
             </div>
             <div class="flex items-center gap-2.5">
-              <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
-              <span>Sıfır Toplama Hatası (Anlık Denetim)</span>
+              <div class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">✓</div>
+              <span class="font-medium text-slate-700">Sıfır Toplama Hatası (Anlık Denetim)</span>
             </div>
             <div class="flex items-center gap-2.5">
-              <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
-              <span>Sihirli Yer İmi ile Tek Tıkla Doldurma</span>
+              <div class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">✓</div>
+              <span class="font-medium text-slate-700">Sihirli Yer İmi ile Tek Tıkla Doldurma</span>
             </div>
             <div class="flex items-center gap-2.5">
-              <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
-              <span>0 Eklenti & %100 Güvenli KVKK</span>
+              <div class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">✓</div>
+              <span class="font-medium text-slate-700">0 Eklenti & %100 Güvenli KVKK</span>
             </div>
           </div>
 
@@ -254,28 +251,28 @@
 
         <!-- Right: Modern Glassmorphic Auth Portal Card -->
         <div id="giris-alani" class="lg:col-span-5">
-          <div class="relative glass-card glow-border rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <div class="relative glass-card glow-border rounded-3xl p-6 sm:p-8 shadow-xl">
             
             <!-- Atmospheric Top Edge Highlight -->
-            <div class="absolute -top-[1px] left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent"></div>
+            <div class="absolute -top-[1px] left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>
 
             <div class="text-center mb-6">
-              <h2 class="text-xl font-bold text-white tracking-tight">Öğretmen Portalı</h2>
-              <p class="text-xs text-slate-400 mt-1">Giriş yapın veya sistem erişimi için başvurun</p>
+              <h2 class="text-xl font-bold text-slate-900 tracking-tight">Öğretmen Portalı</h2>
+              <p class="text-xs text-slate-500 mt-1">Giriş yapın veya sistem erişimi için başvurun</p>
             </div>
 
             <!-- Tab Switcher (Giriş Yap / Sisteme Başvur) -->
-            <div class="flex rounded-xl bg-slate-900/80 p-1 mb-5 border border-white/10" role="tablist">
-              <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+            <div class="flex rounded-xl bg-slate-100 p-1 mb-5 border border-slate-200" role="tablist">
+              <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all bg-white text-blue-600 shadow-sm border border-slate-200/60">
                 Giriş Yap
               </button>
-              <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all text-slate-400 hover:text-white">
+              <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900">
                 Sisteme Başvur
               </button>
             </div>
 
             <!-- GOOGLE ILE GIRIS BUTONU -->
-            <button id="btn-google-login" onclick="handleGoogleSignIn()" class="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 mb-5 group">
+            <button id="btn-google-login" onclick="handleGoogleSignIn()" class="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 font-bold text-sm flex items-center justify-center gap-3 transition-all shadow-sm hover:shadow active:scale-95 mb-5 group">
               <svg class="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -287,39 +284,39 @@
 
             <!-- Divider -->
             <div class="relative flex py-2 items-center mb-5">
-              <div class="flex-grow border-t border-white/10"></div>
+              <div class="flex-grow border-t border-slate-200"></div>
               <span class="flex-shrink mx-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">veya e-posta ile</span>
-              <div class="flex-grow border-t border-white/10"></div>
+              <div class="flex-grow border-t border-slate-200"></div>
             </div>
 
             <!-- GİRİŞ FORMU -->
             <form id="form-login" onsubmit="handleEmailSignIn(event)" class="space-y-4">
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                   <span>E-posta Adresi</span>
-                  <span class="text-[11px] text-cyan-400 font-normal">@meb.k12.tr destekli</span>
+                  <span class="text-[11px] text-blue-600 font-semibold">@meb.k12.tr destekli</span>
                 </label>
                 <div class="relative">
                   <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206"></path></svg>
                   </span>
-                  <input type="email" id="login-email" required placeholder="ornek@ogretmen.meb.k12.tr" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white placeholder-slate-500 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 focus:outline-none transition">
+                  <input type="email" id="login-email" required placeholder="ornek@ogretmen.meb.k12.tr" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition">
                 </div>
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5">Şifre</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Şifre</label>
                 <div class="relative">
                   <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                   </span>
-                  <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white placeholder-slate-500 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 focus:outline-none transition">
+                  <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition">
                 </div>
               </div>
 
-              <div id="login-error" class="hidden text-xs text-rose-300 bg-rose-500/15 border border-rose-500/30 p-3 rounded-xl font-medium"></div>
+              <div id="login-error" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl font-medium"></div>
 
-              <button type="submit" id="btn-login-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 via-indigo-600 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all active:scale-95">
+              <button type="submit" id="btn-login-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-blue-500/25 hover:shadow-lg transition-all active:scale-95">
                 Giriş Yap
               </button>
             </form>
@@ -327,29 +324,29 @@
             <!-- KAYIT FORMU (Sisteme Başvur) -->
             <form id="form-register" onsubmit="handleEmailSignUp(event)" class="space-y-4 hidden">
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5">Adınız Soyadınız</label>
-                <input type="text" id="reg-fullname" required placeholder="Ahmet Yılmaz" class="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white placeholder-slate-500 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 focus:outline-none transition">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Adınız Soyadınız</label>
+                <input type="text" id="reg-fullname" required placeholder="Ahmet Yılmaz" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition">
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5">E-posta Adresi</label>
-                <input type="email" id="reg-email" required placeholder="ornek@ogretmen.meb.k12.tr" class="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white placeholder-slate-500 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 focus:outline-none transition">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">E-posta Adresi</label>
+                <input type="email" id="reg-email" required placeholder="ornek@ogretmen.meb.k12.tr" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition">
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5">Şifre (En az 6 karakter)</label>
-                <input type="password" id="reg-password" minlength="6" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white placeholder-slate-500 text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 focus:outline-none transition">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Şifre (En az 6 karakter)</label>
+                <input type="password" id="reg-password" minlength="6" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition">
               </div>
 
-              <div id="register-error" class="hidden text-xs text-rose-300 bg-rose-500/15 border border-rose-500/30 p-3 rounded-xl font-medium"></div>
-              <div id="register-success" class="hidden text-xs text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 p-3 rounded-xl font-medium"></div>
+              <div id="register-error" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl font-medium"></div>
+              <div id="register-success" class="hidden text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 rounded-xl font-medium"></div>
 
-              <button type="submit" id="btn-reg-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all active:scale-95">
+              <button type="submit" id="btn-reg-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-md shadow-emerald-500/25 hover:shadow-lg transition-all active:scale-95">
                 Kayıt Ol ve Başvur
               </button>
             </form>
 
-            <p class="text-[11px] text-slate-400 text-center mt-4 leading-relaxed">
+            <p class="text-[11px] text-slate-500 text-center mt-4 leading-relaxed">
               Kayıt başvurunuz doğrudan sistem yöneticisi ekranına iletilir. Onaylandıktan sonra sistemin tüm özelliklerini sınırsızca kullanabilirsiniz.
             </p>
           </div>
@@ -360,23 +357,23 @@
   </main>
 
   <!-- ============================================================== -->
-  <!-- 1. YENİ BÖLÜM: CANLI ANİMASYONLU İSTATİSTİKLER (ULTRA PROFESYONEL) -->
+  <!-- 1. CANLI ANİMASYONLU İSTATİSTİKLER (ŞIK, FERAH & DENGELİ) -->
   <!-- ============================================================== -->
-  <section id="istatistikler" class="py-16 relative z-10 border-y border-white/[0.08] bg-[#080d21]/90 backdrop-blur-2xl">
+  <section id="istatistikler" class="py-16 relative z-10 border-y border-slate-200/80 bg-white/70 backdrop-blur-xl">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
       
       <!-- Live Counter Heading -->
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
         <div>
-          <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-xs font-bold mb-3 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold mb-3 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
             <span>Canlı Sistem Metrikleri & Verimlilik</span>
           </div>
-          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             Rakamlarla e-Okul Spead Etkisi
           </h2>
         </div>
-        <p class="text-slate-400 text-xs sm:text-sm max-w-md">
+        <p class="text-slate-500 text-xs sm:text-sm max-w-md">
           Öğretmenlerin sınav haftalarındaki yoğun iş yükünü hafifleten gerçek zamanlı verimlilik kazanımları.
         </p>
       </div>
@@ -385,54 +382,54 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="stats-container">
         
         <!-- Stat Card 1: Zaman Tasarrufu -->
-        <div class="glass-card glass-card-hover p-7 rounded-2xl border-indigo-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
+        <div class="glass-card glass-card-hover p-7 rounded-2xl border-indigo-200/80 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-indigo-100/50 rounded-full blur-xl group-hover:bg-indigo-200/60 transition-all"></div>
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-indigo-500/15 border border-indigo-400/30 flex items-center justify-center text-indigo-400 text-2xl shadow-inner">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 text-2xl shadow-sm">
               ⚡
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-400/20">Hız & Verim</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">Hız & Verim</span>
           </div>
-          <div class="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline">
-            <span class="text-indigo-400 mr-0.5">%</span>
-            <span class="stat-number count-up" data-target="85" data-format="percent">0</span>
+          <div class="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight mb-2 flex items-baseline">
+            <span class="text-indigo-600 mr-0.5">%</span>
+            <span class="stat-number count-up text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600" data-target="85" data-format="percent">0</span>
           </div>
-          <p class="text-base font-bold text-slate-100">Zaman Tasarrufu</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Sınıf başına ortalama 3 saatlik klavye mesaisi 20 dakikaya iner.</p>
+          <p class="text-base font-bold text-slate-800">Zaman Tasarrufu</p>
+          <p class="text-xs text-slate-500 mt-1 leading-relaxed">Sınıf başına ortalama 3 saatlik klavye mesaisi 20 dakikaya iner.</p>
         </div>
 
         <!-- Stat Card 2: Toplama Hatası -->
-        <div class="glass-card glass-card-hover p-7 rounded-2xl border-emerald-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
+        <div class="glass-card glass-card-hover p-7 rounded-2xl border-emerald-200/80 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-100/50 rounded-full blur-xl group-hover:bg-emerald-200/60 transition-all"></div>
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-emerald-400 text-2xl shadow-inner">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 text-2xl shadow-sm">
               🎯
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-400/20">Matematik Denetimi</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">Matematik Denetimi</span>
           </div>
-          <div class="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline">
-            <span class="text-emerald-400 mr-0.5">%</span>
-            <span class="stat-number count-up" data-target="0" data-format="zero">0</span>
+          <div class="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight mb-2 flex items-baseline">
+            <span class="text-emerald-600 mr-0.5">%</span>
+            <span class="stat-number count-up text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600" data-target="0" data-format="zero">0</span>
           </div>
-          <p class="text-base font-bold text-slate-100">Toplama Hatası</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Soru puanları ve toplam uyuşmazlığında anlık sesli ve renkli ikaz.</p>
+          <p class="text-base font-bold text-slate-800">Toplama Hatası</p>
+          <p class="text-xs text-slate-500 mt-1 leading-relaxed">Soru puanları ve toplam uyuşmazlığında anlık sesli ve renkli ikaz.</p>
         </div>
 
         <!-- Stat Card 3: e-Okul Aktarımı -->
-        <div class="glass-card glass-card-hover p-7 rounded-2xl border-cyan-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
+        <div class="glass-card glass-card-hover p-7 rounded-2xl border-blue-200/80 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-blue-100/50 rounded-full blur-xl group-hover:bg-blue-200/60 transition-all"></div>
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400 text-2xl shadow-inner">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 text-2xl shadow-sm">
               🚀
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-400/20">Sihirli Yer İmi</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">Sihirli Yer İmi</span>
           </div>
-          <div class="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline">
-            <span class="stat-number count-up" data-target="1.2" data-format="decimal">0.0</span>
-            <span class="text-cyan-400 text-2xl ml-1">Sn.</span>
+          <div class="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight mb-2 flex items-baseline">
+            <span class="stat-number count-up text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600" data-target="1.2" data-format="decimal">0.0</span>
+            <span class="text-blue-600 text-2xl ml-1">Sn.</span>
           </div>
-          <p class="text-base font-bold text-slate-100">e-Okul'a Aktarım Süresi</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Yer imine tek tıkla tüm sınıfın notları anında resmi tabloya dökülür.</p>
+          <p class="text-base font-bold text-slate-800">e-Okul'a Aktarım Süresi</p>
+          <p class="text-xs text-slate-500 mt-1 leading-relaxed">Yer imine tek tıkla tüm sınıfın notları anında resmi tabloya dökülür.</p>
         </div>
 
       </div>
@@ -441,26 +438,26 @@
   </section>
 
   <!-- ============================================================== -->
-  <!-- 2. KULLANICI GÖRSELİ & NOT AKTARIM REHBERİ BÖLÜMÜ -->
+  <!-- 2. NOT AKTARIM REHBERİ & İNFOGRAFİK BÖLÜMÜ -->
   <!-- ============================================================== -->
-  <section id="tanitim-rehberi" class="py-20 relative z-10 border-t border-white/[0.08] bg-[#090f24]/70 backdrop-blur-xl">
+  <section id="tanitim-rehberi" class="py-20 relative z-10 border-t border-slate-200/80 bg-slate-50/80 backdrop-blur-xl">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
       
       <div class="text-center max-w-3xl mx-auto mb-14">
-        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold mb-3 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold mb-3 shadow-sm">
           <span>⚡ Kolay Kullanım & İş Akışı</span>
         </div>
-        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
           Nasıl Çalışır? Temel Özellikler & Aktarım Adımları
         </h2>
-        <p class="text-slate-300 text-sm sm:text-base mt-3 max-w-2xl mx-auto leading-relaxed">
+        <p class="text-slate-600 text-sm sm:text-base mt-3 max-w-2xl mx-auto leading-relaxed">
           Sesinizle notları okumaktan e-Okul sayfasına aktarmaya kadar tüm sistem 3 basit adımda gerçekleşir.
         </p>
       </div>
 
-      <!-- KULLANICININ YÜKLEDİĞİ İNFOGRAFİK GÖRSELİ -->
-      <div class="glass-card glow-border rounded-3xl p-4 sm:p-7 max-w-5xl mx-auto shadow-[0_20px_60px_rgba(0,0,0,0.6)] mb-14 group">
-        <div class="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40">
+      <!-- KULLANICININ YÜKLEDİĞİ İNFOGRAFİK GÖRSELİ (Şık, Temiz Çerçeve) -->
+      <div class="glass-card glow-border rounded-3xl p-4 sm:p-7 max-w-5xl mx-auto shadow-xl mb-14 group bg-white">
+        <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <img src="assets/infografik.png" alt="e-Okul Spead: Sesli Not Giriş Asistanı Özellikler ve Adımlar" class="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-[1.01]">
         </div>
       </div>
@@ -469,70 +466,70 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
         
         <!-- Kart 1: Sürekli Sesli Okuma -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/20">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-600 flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-cyan-500/25">
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-blue-200/80">
+          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center text-2xl mb-4 shadow-sm">
             🎙️
           </div>
-          <h3 class="text-lg font-bold text-white mb-2">Sürekli Sesli Okuma</h3>
-          <p class="text-slate-300 text-sm leading-relaxed">
+          <h3 class="text-lg font-bold text-slate-900 mb-2">Sürekli Sesli Okuma</h3>
+          <p class="text-slate-600 text-sm leading-relaxed">
             Mikrofonu bir kez açıp tüm öğrenci notlarını durmadan art arda okuyabilirsiniz. Yapay zeka fonetik model her sayıyı anında yakalar.
           </p>
         </div>
 
         <!-- Kart 2: Otomatik Öğrenci Geçişi -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/20">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-indigo-500/25">
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-indigo-200/80">
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center text-2xl mb-4 shadow-sm">
             👥
           </div>
-          <h3 class="text-lg font-bold text-white mb-2">Otomatik Öğrenci Geçişi</h3>
-          <p class="text-slate-300 text-sm leading-relaxed">
+          <h3 class="text-lg font-bold text-slate-900 mb-2">Otomatik Öğrenci Geçişi</h3>
+          <p class="text-slate-600 text-sm leading-relaxed">
             Bir öğrencinin notları tamamlandığında sistem otomatik olarak sıradaki öğrenciye geçer. Klavye veya fareye dokunmanıza gerek kalmaz.
           </p>
         </div>
 
         <!-- Kart 3: Yer İmi Entegrasyonu -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/20">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-emerald-500/25">
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-emerald-200/80">
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-2xl mb-4 shadow-sm">
             ⭐
           </div>
-          <h3 class="text-lg font-bold text-white mb-2">Yer İmi Entegrasyonu</h3>
-          <p class="text-slate-300 text-sm leading-relaxed">
+          <h3 class="text-lg font-bold text-slate-900 mb-2">Yer İmi Entegrasyonu</h3>
+          <p class="text-slate-600 text-sm leading-relaxed">
             Tarayıcı yer imi (bookmarklet) sayesinde tarayıcınıza hiçbir yabancı eklenti kurmadan e-Okul kutucuklarına saniyeler içinde notları doldurun.
           </p>
         </div>
 
         <!-- Kart 4: Adım 1 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-white/10">
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-slate-200">
           <div class="flex items-center justify-between mb-4">
-            <span class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 font-black text-sm flex items-center justify-center border border-cyan-400/30">1</span>
+            <span class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-black text-sm flex items-center justify-center border border-blue-200">1</span>
             <span class="text-xs font-semibold text-slate-400">İlk Kurulum</span>
           </div>
-          <h4 class="text-base font-bold text-white mb-1.5">Yer İmini Tarayıcıya Ekle</h4>
-          <p class="text-slate-300 text-sm leading-relaxed">
+          <h4 class="text-base font-bold text-slate-900 mb-1.5">Yer İmini Tarayıcıya Ekle</h4>
+          <p class="text-slate-600 text-sm leading-relaxed">
             Asistan panelindeki butonu tarayıcınızın Yer İmleri Çubuğuna sürükleyip bırakmanız yeterlidir. Tek seferlik işlemdir.
           </p>
         </div>
 
         <!-- Kart 5: Adım 2 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-white/10">
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-slate-200">
           <div class="flex items-center justify-between mb-4">
-            <span class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 font-black text-sm flex items-center justify-center border border-indigo-400/30">2</span>
+            <span class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center border border-indigo-200">2</span>
             <span class="text-xs font-semibold text-slate-400">Sesli Okuma</span>
           </div>
-          <h4 class="text-base font-bold text-white mb-1.5">Notları Sesli Okuyun</h4>
-          <p class="text-slate-300 text-sm leading-relaxed">
+          <h4 class="text-base font-bold text-slate-900 mb-1.5">Notları Sesli Okuyun</h4>
+          <p class="text-slate-600 text-sm leading-relaxed">
             Mikrofonu başlatarak öğrenci numarası ve sınav puanlarını sırayla okuyun. Sistem anlık toplama ve liste denetimi yapar.
           </p>
         </div>
 
         <!-- Kart 6: Adım 3 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-white/10">
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-slate-200">
           <div class="flex items-center justify-between mb-4">
-            <span class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-sm flex items-center justify-center border border-emerald-400/30">3</span>
+            <span class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 font-black text-sm flex items-center justify-center border border-emerald-200">3</span>
             <span class="text-xs font-semibold text-slate-400">e-Okul Aktarımı</span>
           </div>
-          <h4 class="text-base font-bold text-white mb-1.5">e-Okul'a Tek Tıkla Aktarın</h4>
-          <p class="text-slate-300 text-sm leading-relaxed">
+          <h4 class="text-base font-bold text-slate-900 mb-1.5">e-Okul'a Tek Tıkla Aktarın</h4>
+          <p class="text-slate-600 text-sm leading-relaxed">
             e-Okul Hızlı Not Girişi ekranında eklediğiniz yer imine tek bir tık yapın; tüm sınıfın notları kutucuklara saniyeler içinde otomatik dolsun!
           </p>
         </div>
@@ -543,19 +540,19 @@
   </section>
 
   <!-- ============================================================== -->
-  <!-- 3. YENİ BÖLÜM: ÖĞRETMEN GÖRÜŞLERİ & ANİMASYONLU YORUMLAR (MARQUEE) -->
+  <!-- 3. ÖĞRETMEN GÖRÜŞLERİ & ANİMASYONLU YORUMLAR (MARQUEE) -->
   <!-- ============================================================== -->
-  <section id="ogretmen-yorumlari" class="py-24 relative z-10 border-t border-white/[0.08] bg-[#070c1e] overflow-hidden">
+  <section id="ogretmen-yorumlari" class="py-24 relative z-10 border-t border-slate-200/80 bg-white overflow-hidden">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 mb-14">
       
       <div class="text-center max-w-3xl mx-auto">
-        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-400/30 text-amber-300 text-xs font-bold mb-3 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold mb-3 shadow-sm">
           <span>★ 5.0 / 5.0 Kullanıcı Memnuniyeti</span>
         </div>
-        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
           Öğretmenler e-Okul Spead Hakkında Ne Diyor?
         </h2>
-        <p class="text-slate-300 text-sm sm:text-base mt-3 max-w-2xl mx-auto leading-relaxed">
+        <p class="text-slate-600 text-sm sm:text-base mt-3 max-w-2xl mx-auto leading-relaxed">
           Türkiye genelinde yüzlerce öğretmenin sınav haftalarında kazandığı konfor ve zaman.
         </p>
       </div>
@@ -565,224 +562,195 @@
     <!-- ANİMASYONLU AKAN YORUM ŞERİDİ (INFINITE MARQUEE) -->
     <div class="relative w-full overflow-hidden py-4">
       <!-- Gradient Edge Fade Left & Right -->
-      <div class="absolute left-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-r from-[#070c1e] to-transparent z-20 pointer-events-none"></div>
-      <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-l from-[#070c1e] to-transparent z-20 pointer-events-none"></div>
+      <div class="absolute left-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-r from-white to-transparent z-20 pointer-events-none"></div>
+      <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-l from-white to-transparent z-20 pointer-events-none"></div>
 
       <div class="animate-marquee flex gap-6 px-4">
         
         <!-- Yorum 1 -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/20 flex flex-col justify-between">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-blue-200/80 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-400/20">Matematik</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Matematik</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "300 kağıdın soru puanlarını toplayıp tek tek girmek 2 günümü alıyordu. e-Okul Spead ile kahvemi içerken 25 dakikada hallettim. Toplama hatası riskini sıfıra indirmesi inanılmaz bir rahatlık."
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               AK
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Ayşe Kaya</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">Anadolu Lisesi Matematik Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">Anadolu Lisesi Matematik Öğretmeni</p>
             </div>
           </div>
         </div>
 
         <!-- Yorum 2 -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/20 flex flex-col justify-between">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-indigo-200/80 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-400/20">Türkçe & Edebiyat</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Türkçe & Edebiyat</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "Klasik sınavlarda '42 numara soru bir 18 soru iki 15' diyorum ve arkama yaslanıyorum. Yer imi teknolojisi sayesinde okul bilgisayarına hiçbir eklenti yüklemeden tek tıkla çalışması tam bir devrim."
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               MT
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Murat Tekin</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">Türk Dili ve Edebiyatı Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">Türk Dili ve Edebiyatı Öğretmeni</p>
             </div>
           </div>
         </div>
 
         <!-- Yorum 3 -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/20 flex flex-col justify-between">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-emerald-200/80 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-400/20">Fen Bilimleri</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Fen Bilimleri</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "İlk başta Türkçe telaffuzları ve hızlı okumayı algılayabileceğine şüpheyle yaklaşmıştım. Ancak o kadar kusursuz anlıyor ki şaşkına döndüm. e-Okul'a aktarma anı resmen sihirbazlık gibi."
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               ZB
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Zeynep Başar</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">Fen Bilgisi Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">Fen Bilgisi Öğretmeni</p>
             </div>
           </div>
         </div>
 
         <!-- Yorum 4 -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-violet-500/20 flex flex-col justify-between">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-violet-200/80 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-400/20">Tarih</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">Tarih</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "Yarıyıl ve sene sonu not giriş stresimi tamamen bitirdi. Gözlerimi ekrana dikip klavyede hata aramak zorunda kalmıyorum. Tüm zümre arkadaşlarıma tavsiye ettim, herkes çok memnun."
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               EŞ
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Emre Şen</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">Tarih Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">Tarih Öğretmeni</p>
             </div>
           </div>
         </div>
 
         <!-- Yorum 5 -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-sky-500/20 flex flex-col justify-between">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-sky-200/80 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-400/20">İngilizce</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">İngilizce</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "Ortak sınav sonuçlarını sisteme aktarmak saatler sürüyordu. Şimdi öğrencilerimin kağıtlarını sesli okurken notlar kendiliğinden e-Okul kutucuklarına diziliyor. Harika bir teknoloji!"
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-600 to-blue-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               FD
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Fatma Demir</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">İngilizce Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">İngilizce Öğretmeni</p>
             </div>
           </div>
         </div>
 
         <!-- DÖNGÜ İÇİN KOPYALAR (SÜREKLİ AKIŞ SAĞLAMAK İÇİN İKİNCİ SET) -->
-        <!-- Yorum 1 Kopyası -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/20 flex flex-col justify-between" aria-hidden="true">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-blue-200/80 flex flex-col justify-between" aria-hidden="true">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-400/20">Matematik</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Matematik</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "300 kağıdın soru puanlarını toplayıp tek tek girmek 2 günümü alıyordu. e-Okul Spead ile kahvemi içerken 25 dakikada hallettim. Toplama hatası riskini sıfıra indirmesi inanılmaz bir rahatlık."
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               AK
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Ayşe Kaya</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">Anadolu Lisesi Matematik Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">Anadolu Lisesi Matematik Öğretmeni</p>
             </div>
           </div>
         </div>
 
-        <!-- Yorum 2 Kopyası -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/20 flex flex-col justify-between" aria-hidden="true">
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-indigo-200/80 flex flex-col justify-between" aria-hidden="true">
           <div>
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-amber-400 text-sm">
                 ★★★★★
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-400/20">Türkçe & Edebiyat</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Türkçe & Edebiyat</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
+            <p class="text-slate-700 text-sm leading-relaxed italic">
               "Klasik sınavlarda '42 numara soru bir 18 soru iki 15' diyorum ve arkama yaslanıyorum. Yer imi teknolojisi sayesinde okul bilgisayarına hiçbir eklenti yüklemeden tek tıkla çalışması tam bir devrim."
             </p>
           </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center font-bold text-sm text-white shadow-sm">
               MT
             </div>
             <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+              <p class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>Murat Tekin</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">✓ Doğrulanmış</span>
               </p>
-              <p class="text-[11px] text-slate-400">Türk Dili ve Edebiyatı Öğretmeni</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Yorum 3 Kopyası -->
-        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/20 flex flex-col justify-between" aria-hidden="true">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-1 text-amber-400 text-sm">
-                ★★★★★
-              </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-400/20">Fen Bilimleri</span>
-            </div>
-            <p class="text-slate-300 text-sm leading-relaxed italic">
-              "İlk başta Türkçe telaffuzları ve hızlı okumayı algılayabileceğine şüpheyle yaklaşmıştım. Ancak o kadar kusursuz anlıyor ki şaşkına döndüm. e-Okul'a aktarma anı resmen sihirbazlık gibi."
-            </p>
-          </div>
-          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
-              ZB
-            </div>
-            <div>
-              <p class="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>Zeynep Başar</span>
-                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
-              </p>
-              <p class="text-[11px] text-slate-400">Fen Bilgisi Öğretmeni</p>
+              <p class="text-[11px] text-slate-500">Türk Dili ve Edebiyatı Öğretmeni</p>
             </div>
           </div>
         </div>
@@ -792,31 +760,31 @@
   </section>
 
   <!-- GÜVENLİK VE GİZLİLİK -->
-  <section id="guvenlik" class="py-16 relative z-10 border-t border-white/[0.08] bg-[#070b19]">
+  <section id="guvenlik" class="py-16 relative z-10 border-t border-slate-200/80 bg-slate-100/60">
     <div class="max-w-4xl mx-auto px-4 text-center">
-      <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-400/30 flex items-center justify-center text-3xl mb-4 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-3xl mb-4 shadow-sm text-emerald-700">
         🔒
       </div>
-      <h3 class="text-2xl sm:text-3xl font-black text-white mb-3 tracking-tight">
+      <h3 class="text-2xl sm:text-3xl font-black text-slate-900 mb-3 tracking-tight">
         %100 KVKK ve Öğrenci Gizliliği Uyumlu
       </h3>
-      <p class="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
+      <p class="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
         e-Okul Spead, öğrencilerin T.C. Kimlik numaralarını, adlarını veya kişisel verilerini sunucuda depolamaz. Not giriş işlemleri tamamen sizin tarayıcınız ve oturumunuz üzerinde çalışır.
       </p>
 
       <div class="flex flex-wrap items-center justify-center gap-3 pt-6">
-        <span class="px-3.5 py-1.5 rounded-full bg-slate-900 border border-white/10 text-xs font-semibold text-slate-300">✓ 256-Bit SSL Şifreleme</span>
-        <span class="px-3.5 py-1.5 rounded-full bg-slate-900 border border-white/10 text-xs font-semibold text-slate-300">✓ MEB e-Okul Tam Uyumlu</span>
-        <span class="px-3.5 py-1.5 rounded-full bg-slate-900 border border-white/10 text-xs font-semibold text-slate-300">✓ Sıfır Eklenti Kurulumu</span>
+        <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-sm">✓ 256-Bit SSL Şifreleme</span>
+        <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-sm">✓ MEB e-Okul Tam Uyumlu</span>
+        <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-sm">✓ Sıfır Eklenti Kurulumu</span>
       </div>
     </div>
   </section>
 
   <!-- FOOTER -->
-  <footer class="border-t border-white/[0.08] py-8 text-center text-xs text-slate-400 relative z-10 bg-[#060a16]">
+  <footer class="border-t border-slate-200/80 py-8 text-center text-xs text-slate-500 relative z-10 bg-white">
     <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-2">
-        <span class="font-extrabold text-white">e-Okul Spead</span>
+        <span class="font-extrabold text-slate-900">e-Okul Spead</span>
         <span>— Öğretmenler İçin Sesli Not Giriş Asistanı</span>
       </div>
       <p>&copy; 2026 e-Okul Spead. Tüm hakları saklıdır.</p>
@@ -833,13 +801,13 @@
       const formReg = document.getElementById('form-register');
 
       if (tab === 'login') {
-        tabLogin.className = 'flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]';
-        tabReg.className = 'flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all text-slate-400 hover:text-white';
+        tabLogin.className = 'flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all bg-white text-blue-600 shadow-sm border border-slate-200/60';
+        tabReg.className = 'flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900';
         formLogin.classList.remove('hidden');
         formReg.classList.add('hidden');
       } else {
-        tabReg.className = 'flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all bg-gradient-to-r from-emerald-500 to-cyan-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]';
-        tabLogin.className = 'flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all text-slate-400 hover:text-white';
+        tabReg.className = 'flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all bg-white text-emerald-600 shadow-sm border border-slate-200/60';
+        tabLogin.className = 'flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900';
         formReg.classList.remove('hidden');
         formLogin.classList.add('hidden');
       }
@@ -985,7 +953,7 @@
     function animateSingleCounter(el) {
       const target = parseFloat(el.getAttribute('data-target'));
       const format = el.getAttribute('data-format');
-      const duration = 2000; // ms
+      const duration = 1800; // ms
       const startTime = performance.now();
 
       function update(currentTime) {
