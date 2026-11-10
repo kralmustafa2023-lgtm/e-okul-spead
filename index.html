@@ -269,7 +269,7 @@
     // E-posta ile Giriş
     async function handleEmailSignIn(e) {
       e.preventDefault();
-      const email = document.getElementById('login-email').value;
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
       const pass = document.getElementById('login-password').value;
       const errorBox = document.getElementById('login-error');
       const btn = document.getElementById('btn-login-submit');
@@ -280,15 +280,26 @@
 
       try {
         await window.db.signIn(email, pass);
-        // Kullanıcının yetkisine göre yönlendir
         const user = await window.db.getCurrentUser();
-        if (user && user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
-          window.location.href = 'panel.html';
-        } else {
-          window.location.href = 'bekleme.html';
+        if (user) {
+          if (user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
+            window.location.href = 'panel.html';
+          } else {
+            window.location.href = 'bekleme.html';
+          }
         }
       } catch (err) {
-        errorBox.textContent = 'Giriş başarısız: ' + (err.message || 'E-posta veya şifre hatalı!');
+        let msg = 'E-posta veya şifre hatalı!';
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+          msg = 'E-posta adresi veya şifre hatalı!';
+        } else if (err.code === 'auth/invalid-email') {
+          msg = 'Lütfen geçerli bir e-posta adresi giriniz.';
+        } else if (err.code === 'auth/too-many-requests') {
+          msg = 'Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyiniz.';
+        } else if (err.message) {
+          msg = err.message;
+        }
+        errorBox.textContent = 'Giriş başarısız: ' + msg;
         errorBox.classList.remove('hidden');
       } finally {
         btn.textContent = 'Giriş Yap';
@@ -299,8 +310,8 @@
     // E-posta ile Kayıt Ol
     async function handleEmailSignUp(e) {
       e.preventDefault();
-      const name = document.getElementById('reg-fullname').value;
-      const email = document.getElementById('reg-email').value;
+      const name = document.getElementById('reg-fullname').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
       const pass = document.getElementById('reg-password').value;
       const errorBox = document.getElementById('register-error');
       const successBox = document.getElementById('register-success');
@@ -320,9 +331,23 @@
           document.getElementById('login-email').value = email;
         }, 1500);
       } catch (err) {
-        errorBox.textContent = 'Kayıt başarısız: ' + (err.message || 'Bir hata oluştu!');
+        let msg = 'Bir hata oluştu!';
+        if (err.code === 'auth/email-already-in-use') {
+          msg = 'Bu e-posta adresi ile zaten bir hesap var! Giriş yapmayı deneyin.';
+        } else if (err.code === 'auth/weak-password') {
+          msg = 'Şifre çok zayıf! En az 6 karakter olmalıdır.';
+        } else if (err.code === 'auth/invalid-email') {
+          msg = 'Geçersiz e-posta formatı.';
+        } else if (err.message) {
+          msg = err.message;
+        }
+        errorBox.textContent = 'Kayıt başarısız: ' + msg;
         errorBox.classList.remove('hidden');
       } finally {
+        btn.textContent = 'Kayıt Ol ve Başvur';
+        btn.disabled = false;
+      }
+    }
         btn.textContent = 'Kayıt Ol ve Başvur';
         btn.disabled = false;
       }
