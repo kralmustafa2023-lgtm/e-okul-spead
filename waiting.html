@@ -1,89 +1,9 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Erişim Onayı Bekleniyor - e-Okul Spead</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js"></script>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; }
-  </style>
+  <meta http-equiv="refresh" content="0; url=bekleme.html">
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white min-h-screen flex items-center justify-center p-4">
-
-  <div class="max-w-lg w-full bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl text-center relative overflow-hidden">
-    <!-- Dekoratif Arka Plan Efekti -->
-    <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/30 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-rose-500/20 rounded-full blur-3xl pointer-events-none"></div>
-
-    <!-- İkon -->
-    <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-4xl shadow-lg shadow-amber-500/20 animate-pulse">
-      ⏳
-    </div>
-
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-3">
-      Erişim Onayı Bekleniyor
-    </h1>
-
-    <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 text-amber-200 text-sm leading-relaxed">
-      <p class="font-bold text-amber-300 mb-1">Hesabınız Henüz Aktifleştirilmedi!</p>
-      Lütfen sisteme erişim için <span class="font-extrabold text-white underline">yönetici (admin) ile iletişime geçiniz.</span>
-    </div>
-
-    <p class="text-slate-300 text-sm mb-8 leading-relaxed">
-      e-Okul Spead lisanslı ve kontrollü bir öğretmen asistanıdır. Yöneticiniz hesabınızı onayladığında bu sayfayı yenileyerek veya tekrar giriş yaparak doğrudan sisteme erişebilirsiniz.
-    </p>
-
-    <!-- Kullanıcı Bilgisi -->
-    <div id="user-info-box" class="bg-slate-800/60 rounded-xl p-3 mb-6 text-xs text-slate-400 font-mono flex items-center justify-between border border-white/5">
-      <span>Giriş Yapılan Hesap:</span>
-      <span id="user-email-text" class="text-indigo-300 font-semibold truncate ml-2">Yükleniyor...</span>
-    </div>
-
-    <!-- Butonlar -->
-    <div class="space-y-3">
-      <button onclick="checkAccess()" class="w-full py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition transform active:scale-95 flex items-center justify-center gap-2">
-        <span>🔄 Durumu Yeniden Kontrol Et</span>
-      </button>
-
-      <button onclick="window.db.signOut()" class="w-full py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white font-semibold text-xs border border-white/10 transition">
-        Farklı Hesapla Giriş Yap / Çıkış Yap
-      </button>
-    </div>
-  </div>
-
-  <script>
-    async function initWaitingPage() {
-      const user = await window.db.getCurrentUser();
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-
-      document.getElementById('user-email-text').textContent = user.email;
-
-      // Eğer admin zaten onay vermişse doğrudan ana uygulamaya gönder
-      if (user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
-        window.location.href = 'index.html';
-      }
-    }
-
-    async function checkAccess() {
-      const user = await window.db.getCurrentUser();
-      if (user && user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
-        window.location.href = 'index.html';
-      } else {
-        alert('Hesabınız henüz onaylanmamış. Lütfen yöneticiye onay vermesini söyleyiniz.');
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', initWaitingPage);
-  </script>
+<body>
+  <p>Yönlendiriliyorsunuz: <a href="bekleme.html">bekleme.html</a></p>
 </body>
 </html>

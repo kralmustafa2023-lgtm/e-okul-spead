@@ -1,405 +1,329 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>e-Okul Spead | Sesli Not Giriş Asistanı</title>
-  
-  <!-- Google Fonts Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS CDN -->
+  <title>e-Okul Spead - Sesli Öğretmen Not Asistanı | Giriş ve Tanıtım</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          }
-        }
-      }
-    }
-  </script>
-  
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/styles.css">
-
-  <!-- Supabase JS & Auth Guard -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white">
 
-  <!-- Üst Menü & Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 backdrop-blur-md bg-white/90">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <!-- NAVBAR -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 font-black text-xl text-white">
+          ⚡
         </div>
         <div>
-          <h1 class="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            e-Okul Spead
-            <span class="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">v2.0 Pro</span>
-          </h1>
-          <p class="text-xs text-slate-500 hidden sm:block">Sürekli Sesli Not Okuma & Otomatik e-Okul Doldurucu</p>
+          <span class="font-extrabold text-lg text-white tracking-tight">e-Okul <span class="text-indigo-400">Spead</span></span>
+          <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-semibold px-2 py-0.5 rounded-full ml-1 border border-indigo-500/30">AI Destekli v7.0</span>
         </div>
       </div>
 
-      <!-- Hızlı Bağlantılar / Durum -->
-      <div class="flex items-center gap-3">
-        <!-- Admin Butonu (Sadece Admin görür) -->
-        <a id="nav-admin-btn" href="admin.html" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm">
-          <span>👑</span> Admin Paneli
-        </a>
-
-        <button onclick="document.getElementById('bookmarklet-modal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-          Yer İmi Kurulumu
-        </button>
-
-        <!-- Kullanıcı Menüsü -->
-        <div class="flex items-center gap-2 pl-2 border-l border-slate-200 text-xs">
-          <span id="user-display-name" class="font-bold text-slate-700 max-w-[120px] truncate">...</span>
-          <button onclick="window.db.signOut()" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition" title="Çıkış Yap">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-          </button>
-        </div>
-      </div>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+        <a href="#ozellikler" class="hover:text-white transition">Özellikler</a>
+        <a href="#nasil-calisir" class="hover:text-white transition">Nasıl Çalışır?</a>
+        <a href="#guvenlik" class="hover:text-white transition">Gizlilik & Güvenlik</a>
+        <a href="#giris-alani" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-md shadow-indigo-600/30">Hemen Giriş Yap</a>
+      </nav>
     </div>
   </header>
 
-  <!-- Ana İçerik -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+  <!-- HERO SECTION -->
+  <main class="relative overflow-hidden pt-12 pb-20 lg:pt-20">
+    <!-- Dekoratif Işıklar -->
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-    <!-- ÜST KONTROL MERKEZİ -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <!-- MİKROFON VE SÜREKLİ SES PANELİ (2 Sütun Genişlik) -->
-      <div class="lg:col-span-2 bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-slate-800">
-        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div class="flex flex-col sm:flex-row items-center gap-6">
-          <!-- Mikrofon Butonu -->
-          <div class="relative flex-shrink-0">
-            <div id="mic-pulse-ring" class="hidden absolute -inset-2 bg-red-500/30 rounded-full mic-glowing-ring"></div>
-            <button id="mic-toggle-btn" class="relative z-10 w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition-all transform active:scale-95 group">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-            </button>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Sol Taraf: Tanıtım ve Başlık -->
+        <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+            <span class="animate-pulse">🎙️</span> Öğretmenler İçin Sesle Not Girişi
           </div>
 
-          <!-- Canlı Durum ve Bilgi -->
-          <div class="flex-1 text-center sm:text-left space-y-2 w-full">
-            <div class="flex items-center justify-center sm:justify-start gap-2">
-              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <span id="mic-status-text" class="text-sm font-semibold tracking-wide text-indigo-200">Mikrofon Kapalı (Başlatmak İçin Butona Tıklayın)</span>
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.15]">
+            Sınav notlarını <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-pink-400">konuşarak söyleyin</span>, e-Okul'a saniyeler içinde aktarın!
+          </h1>
+
+          <p class="text-slate-300 text-base sm:text-lg max-w-2xl leading-relaxed">
+            Yüzlerce kağıdı tek tek klavyeyle girmeye son. Öğrenci numarasını ve puanları mikrofona söyleyin; yapay zeka dinlesin, toplama hatalarını kontrol etsin ve tek tıkla e-Okul kutucuklarına doldursun.
+          </p>
+
+          <!-- Avantaj Maddeleri -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-sm text-slate-300">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400 font-bold">✓</span> %100 Türkçe Ses Tanıma
             </div>
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400 font-bold">✓</span> Otomatik Puan Toplamı Doğrulama
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400 font-bold">✓</span> Tek Tıkla e-Okul'a Yapıştırma
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400 font-bold">✓</span> Excel ve CSV Dışa Aktarma
+            </div>
+          </div>
+        </div>
+
+        <!-- Sağ Taraf: Giriş & Kayıt Kartı -->
+        <div id="giris-alani" class="lg:col-span-5">
+          <div class="bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
             
-            <!-- Canlı Dinleme Metin Kutusu -->
-            <div class="bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl p-3 space-y-2">
-              <p id="speech-live-preview" class="text-sm text-slate-300 italic min-h-[1.75rem] flex items-center justify-center sm:justify-start">
-                Mikrofonu açtıktan sonra okuyun: "18 15 4 3 5 3 24 18 5 4 4 5..."
-              </p>
-              
-              <!-- Canlı Mikrofon Ses Seviyesi Barı -->
-              <div class="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden border border-white/5">
-                <div id="mic-volume-level" class="bg-emerald-500 h-full w-0 transition-all duration-75 rounded-full"></div>
-              </div>
+            <!-- Sekmeler: Giriş Yap / Kayıt Ol -->
+            <div class="flex rounded-xl bg-slate-800/80 p-1 mb-6 border border-slate-700/50">
+              <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition bg-indigo-600 text-white shadow-sm">
+                Giriş Yap
+              </button>
+              <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition text-slate-400 hover:text-white">
+                Kayıt Ol
+              </button>
             </div>
 
-            <!-- CANLI SLOT OKUMA PANELİ (Aktif Okunan Öğrenci) -->
-            <div class="bg-black/40 border border-white/10 rounded-xl p-3">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                  <span>🎯</span> Şu An Okunan Öğrenci:
-                </span>
-                <div class="flex gap-1.5">
-                  <button type="button" onclick="app.undoLastNumber()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700 transition">↩️ Geri Al</button>
-                  <button type="button" onclick="app.clearCurrentSlots()" class="text-[10px] bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 px-2 py-0.5 rounded border border-slate-700 transition">❌ Sıfırla</button>
-                </div>
-              </div>
-
-              <!-- Dinamik Kutucuklar -->
-              <div id="live-slots-container" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-              </div>
-            </div>
-
-            <!-- Mantık Şeması -->
-            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 text-[11px] text-indigo-300/90 pt-1">
-              <span class="bg-indigo-900/70 px-2 py-0.5 rounded font-mono border border-indigo-700/50">1. Okul No</span>
-              <span>➔</span>
-              <span class="bg-indigo-900/70 px-2 py-0.5 rounded font-mono border border-indigo-700/50">2. Toplam Puan</span>
-              <span>➔</span>
-              <span class="bg-indigo-900/70 px-2 py-0.5 rounded font-mono border border-indigo-700/50">Soru Puanları (4 adet)</span>
-              <span>➔</span>
-              <span class="bg-emerald-900/70 text-emerald-300 px-2 py-0.5 rounded font-semibold border border-emerald-700/50">Otomatik Yeni Öğrenci!</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Manuel Metin Girişi -->
-        <div class="mt-5 pt-4 border-t border-white/10">
-          <form id="manual-add-form" class="flex gap-2">
-            <input type="text" id="manual-input-text" placeholder="Ses yerine metinle toplu girmek isterseniz: örn. 18 15 4 3 5 3 24 18 5 4 4 5" class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 transition">
-            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs font-semibold text-white transition flex items-center gap-1">
-              <span>Ekle</span>
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+            <!-- GOOGLE İLE GİRİŞ BUTONU -->
+            <button onclick="handleGoogleSignIn()" class="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm flex items-center justify-center gap-3 transition shadow-md active:scale-95 mb-5">
+              <svg class="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Google ile Devam Et</span>
             </button>
-          </form>
-        </div>
-      </div>
 
-      <!-- AYARLAR & YER İMİ KARTI -->
-      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-            <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Sınav Soru Sayısı
-            </h2>
-            <span class="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">Seçili: <span id="current-q-badge">4 Soru</span></span>
-          </div>
-
-          <!-- Soru Sayısı Seçimi -->
-          <div class="mt-4 space-y-2">
-            <div class="flex items-center justify-between">
-              <label for="setting-question-count" class="text-xs font-semibold text-slate-600">Her Öğrenci İçin Soru Sayısı:</label>
-              <input type="number" id="setting-question-count" min="1" max="30" value="4" class="w-16 px-2 py-1 text-center font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <!-- VEYA Çizgisi -->
+            <div class="relative flex py-2 items-center mb-5">
+              <div class="flex-grow border-t border-slate-800"></div>
+              <span class="flex-shrink mx-3 text-slate-500 text-xs font-semibold uppercase tracking-wider">veya e-posta ile</span>
+              <div class="flex-grow border-t border-slate-800"></div>
             </div>
 
-            <!-- Hızlı Butonlar -->
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              <button data-q-count="4" class="px-2.5 py-1 text-xs rounded-md bg-indigo-600 text-white font-bold shadow-sm transition">4 Soru</button>
-              <button data-q-count="5" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">5 Soru</button>
-              <button data-q-count="6" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">6 Soru</button>
-              <button data-q-count="8" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">8 Soru</button>
-              <button data-q-count="10" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">10 Soru</button>
-            </div>
-          </div>
+            <!-- GİRİŞ FORMU -->
+            <form id="form-login" onsubmit="handleEmailSignIn(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">E-posta Adresi</label>
+                <input type="email" id="login-email" required placeholder="ornek@ogretmen.meb.k12.tr" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:border-indigo-500 focus:outline-none transition">
+              </div>
 
-          <!-- Seçenekler Switch -->
-          <div class="mt-5 space-y-3 pt-3 border-t border-slate-100">
-            <label class="flex items-center justify-between cursor-pointer">
-              <span class="text-xs text-slate-600 font-medium">Numaraya Göre Otomatik Sırala</span>
-              <input type="checkbox" id="setting-auto-sort" checked class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
-            </label>
-            <label class="flex items-center justify-between cursor-pointer">
-              <span class="text-xs text-slate-600 font-medium">Sesli Onay & Hata Uyarısı</span>
-              <input type="checkbox" id="setting-sound" checked class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
-            </label>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Şifre</label>
+                <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:border-indigo-500 focus:outline-none transition">
+              </div>
+
+              <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg"></div>
+
+              <button type="submit" id="btn-login-submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition active:scale-95">
+                Giriş Yap
+              </button>
+            </form>
+
+            <!-- KAYIT FORMU (Gizli) -->
+            <form id="form-register" onsubmit="handleEmailSignUp(event)" class="space-y-4 hidden">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Adınız Soyadınız</label>
+                <input type="text" id="reg-fullname" required placeholder="Ahmet Yılmaz" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:border-indigo-500 focus:outline-none transition">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">E-posta Adresi</label>
+                <input type="email" id="reg-email" required placeholder="ornek@ogretmen.meb.k12.tr" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:border-indigo-500 focus:outline-none transition">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Şifre (En az 6 karakter)</label>
+                <input type="password" id="reg-password" minlength="6" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:border-indigo-500 focus:outline-none transition">
+              </div>
+
+              <div id="register-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg"></div>
+              <div id="register-success" class="hidden text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg"></div>
+
+              <button type="submit" id="btn-reg-submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition active:scale-95">
+                Kayıt Ol ve Başvur
+              </button>
+            </form>
+
+            <p class="text-[11px] text-slate-400 text-center mt-4">
+              Kayıt olduğunuzda hesabınız yönetici onayına düşer. Onay verildikten sonra doğrudan sisteme erişebilirsiniz.
+            </p>
           </div>
         </div>
 
-        <!-- YER İMİ KURULUM SEÇENEKLERİ -->
-        <div class="mt-4 pt-3 border-t border-slate-100 bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-200 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-              <span>⚡</span> e-Okul Yer İmi Kurulumu
-            </span>
-            <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">v3.0 Aktif</span>
-          </div>
-
-          <!-- YÖNTEM 1: SÜRÜKLE BIRAK (EN HIZLI OTOMATİK YOL) -->
-          <div>
-            <p class="text-[10px] text-indigo-800 mb-1 font-medium">1. Yol (En Hızlısı): Bu butonu farenizle tutup yukarıdaki Yer İmleri Çubuğuna sürükleyin:</p>
-            <a id="bookmarklet-drag-link" href="#" draggable="true" class="w-full py-2.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-600/30 transition transform active:scale-95 cursor-grab group">
-              <span class="text-base group-hover:scale-125 transition-transform">⚡</span>
-              <span>e-Okul Not Doldurucu (Sürükle-Bırak)</span>
-            </a>
-          </div>
-
-          <!-- YÖNTEM 2 VE 3: KOPYALA VEYA DOSYA İNDİR -->
-          <div class="grid grid-cols-2 gap-2 pt-1">
-            <button onclick="app.copyBookmarkletCode()" class="py-1.5 px-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] border border-slate-300 shadow-sm flex items-center justify-center gap-1 transition">
-              <span>📋 Kodu Kopyala</span>
-            </button>
-            <button onclick="app.downloadBookmarkHtml()" class="py-1.5 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm flex items-center justify-center gap-1 transition" title="Chrome'a tek tıkla aktarılabilir yer imi dosyası">
-              <span>📥 Otomatik Dosya</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
+  </main>
 
-    <!-- İSTATİSTİK BANTLARI -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <p class="text-xs font-semibold text-slate-500">Kayıtlı Öğrenci</p>
-        <p id="stat-total-students" class="text-2xl font-black text-slate-800 mt-1">0</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <p class="text-xs font-semibold text-slate-500">Sınıf Ortalaması</p>
-        <p id="stat-avg-score" class="text-2xl font-black text-indigo-600 mt-1">0</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <p class="text-xs font-semibold text-slate-500">En Yüksek Not</p>
-        <p id="stat-max-score" class="text-2xl font-black text-emerald-600 mt-1">-</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <p class="text-xs font-semibold text-slate-500">En Düşük Not</p>
-        <p id="stat-min-score" class="text-2xl font-black text-amber-600 mt-1">-</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm col-span-2 sm:col-span-1">
-        <p class="text-xs font-semibold text-slate-500">Toplam Uyuşmazlık</p>
-        <p id="stat-warning-count" class="text-2xl font-black text-rose-600 mt-1">0</p>
-      </div>
-    </div>
-
-    <!-- TABLO & AKSİYON BARI -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <!-- Aksiyon Barı -->
-      <div class="p-4 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <h3 class="font-bold text-slate-800 text-sm">Öğrenci Not Tablosu</h3>
-          <span class="text-xs bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full font-mono">Okul No Küçükten Büyüğe</span>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <!-- ANA KOPYALA BUTONU (Sadece Puanlar) -->
-          <button onclick="app.copyScoresOnly()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 transition transform active:scale-95">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-            <span>📋 Sadece Soru Puanlarını Kopyala</span>
-          </button>
-
-          <!-- Alternatif: No + Puan Formatı -->
-          <button onclick="app.copyFullDataForEOkul()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-            <span>No + Puanları Kopyala</span>
-          </button>
-
-          <!-- CSV / Excel İndir -->
-          <button onclick="app.exportToCsv()" class="p-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1 transition" title="Excel / CSV Olarak İndir">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-          </button>
-
-          <!-- Temizle Butonu -->
-          <button onclick="app.clearAllStudents()" class="p-2 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-300 hover:border-rose-300 rounded-xl text-xs font-semibold transition" title="Tüm Tabloyu Sıfırla">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-          </button>
-        </div>
+  <!-- ÖZELLİKLER BÖLÜMÜ -->
+  <section id="ozellikler" class="py-20 border-t border-slate-850 bg-slate-900/40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">Güçlü Özellikler</h2>
+        <p class="text-3xl font-extrabold text-white">Öğretmenlerin Vaktini Geri Kazandırıyoruz</p>
       </div>
 
-      <!-- Tablo İçeriği -->
-      <div id="table-container" class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead id="students-table-head" class="bg-slate-100/70 border-b border-slate-200">
-          </thead>
-          <tbody id="students-table-body" class="divide-y divide-slate-100">
-          </tbody>
-        </table>
-
-        <!-- Boş Durum -->
-        <div id="empty-state" class="py-16 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/60 hover:border-indigo-500/50 transition">
+          <div class="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl mb-4">
+            🎙️
           </div>
-          <h4 class="text-base font-bold text-slate-800">Henüz Öğrenci Notu Eklenmedi</h4>
-          <p class="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
-            Mikrofon butonuna basın ve sırayla tüm öğrencileri durmadan okuyun:<br>
-            <span class="font-mono text-indigo-600 font-semibold">"18 15 4 3 5 3 24 18 5 4 4 5..."</span>
+          <h3 class="text-lg font-bold text-white mb-2">Ultra Hassas Ses Algılama</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Türkçe sayı ve telaffuzlara özel optimize edilmiş yapay zeka parser'ı sayesinde hayali sayıları eler, net sayıları yakalar.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/60 hover:border-indigo-500/50 transition">
+          <div class="w-12 h-12 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-2xl mb-4">
+            📐
+          </div>
+          <h3 class="text-lg font-bold text-white mb-2">Otomatik Matematik Kontrolü</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Söylediğiniz toplam puan ile her sorunun puan toplamı eşleşmezse anında sesli ve renkli uyarı verir. Hatalı not girişine imkan tanımaz.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/60 hover:border-indigo-500/50 transition">
+          <div class="w-12 h-12 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-2xl mb-4">
+            ⚡
+          </div>
+          <h3 class="text-lg font-bold text-white mb-2">e-Okul Sihirli Yer İmi</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            e-Okul sayfasındayken tarayıcınızın yer imine tek bir tık yapmanız yeterli. Sayfadaki not kutucukları otomatik olarak sırayla doldurulur.
           </p>
         </div>
       </div>
     </div>
+  </section>
 
-    <!-- SES GEÇMİŞİ LOG KARTI -->
-    <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 text-white">
-      <div class="flex items-center justify-between mb-3">
-        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
-          Canlı Ses Tanıma Geçmişi & Denetim Kaydı
-        </h4>
-        <span class="text-[11px] text-slate-500">Son eklenen öğrenciler</span>
+  <!-- GÜVENLİK VE GİZLİLİK -->
+  <section id="guvenlik" class="py-16 border-t border-slate-800 bg-slate-950">
+    <div class="max-w-4xl mx-auto px-4 text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mb-4">
+        🔒
       </div>
-      <div id="speech-history-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-        <div class="text-xs text-slate-500 italic p-2">Ses dinleme başladığında algılanan tüm öğrenciler ve doğrulama durumları burada listelenecektir...</div>
-      </div>
+      <h3 class="text-2xl font-bold text-white mb-3">%100 KVKK ve Öğrenci Gizliliği Uyumlu</h3>
+      <p class="text-slate-400 text-sm leading-relaxed max-w-2xl mx-auto">
+        e-Okul Spead, öğrencilerin T.C. Kimlik numaralarını veya kişisel verilerini sunucuda depolamaz. Not giriş işlemleri tamamen sizin tarayıcınız ve oturumunuz üzerinde çalışır.
+      </p>
     </div>
+  </section>
 
-  </main>
-
-  <!-- MODAL: YER İMİ (BOOKMARKLET) KURULUM REHBERİ -->
-  <div id="bookmarklet-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-          <span>⚡</span> e-Okul Yer İmini Tarayıcıya Ekleme
-        </h3>
-        <button onclick="document.getElementById('bookmarklet-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
-        </button>
-      </div>
-
-      <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
-        <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
-          <p class="font-bold text-indigo-950 text-xs">🚀 1. Yol (Otomatik & En Kolayı - Sürükle Bırak):</p>
-          <p class="text-indigo-800 text-[11px]">Aşağıdaki mavi butonu farenizin sol tuşuyla basılı tutarak doğrudan tarayıcınızın üstündeki Yer İmleri Çubuğuna sürükleyip bırakın:</p>
-          <div class="text-center py-1">
-            <a id="bookmarklet-modal-drag-link" href="#" draggable="true" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md transition cursor-grab">
-              ⚡ e-Okul Not Doldurucu
-            </a>
-          </div>
-        </div>
-
-        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-          <p class="font-bold text-slate-800 text-xs">📋 2. Yol (Sağ Tıkla Düzenle / Ekle):</p>
-          <ol class="list-decimal list-inside space-y-1 text-slate-600 text-[11px]">
-            <li>Aşağıdaki butona basarak <strong>kodu tek tıkla kopyalayın</strong>.</li>
-            <li>Yer İmleri Çubuğunda sağ tıklayıp <strong>"Sayfa Ekle"</strong> (veya var olan yer iminde <strong>"Düzenle"</strong>) deyin.</li>
-            <li>URL kısmına yapıştırıp (<kbd class="px-1 py-0.5 bg-slate-200 rounded font-mono">Ctrl + V</kbd>) kaydedin.</li>
-          </ol>
-          <button onclick="app.copyBookmarkletCode()" class="mt-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition">
-            <span>📋 Kodu Kopyala</span>
-          </button>
-        </div>
-
-        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
-          🎯 <strong>Artık hazır!</strong> e-Okul sayfasına gittiğinizde bu yer imine tıklayın. Açılan pencereye kopyaladığınız puanları yapıştırıp <em>"Kutucuklara Doldur"</em> dediğiniz an 12 kutucuğun 12'si de eksiksiz dolar!
-        </div>
-
-        <div class="pt-1">
-          <textarea id="bookmarklet-code-area" rows="2" readonly class="w-full bg-slate-900 text-slate-200 font-mono text-[9px] p-2 rounded-lg border border-slate-800 focus:outline-none"></textarea>
-        </div>
-      </div>
-
-      <div class="pt-2 border-t border-slate-100 flex justify-end">
-        <button onclick="document.getElementById('bookmarklet-modal').classList.add('hidden')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition">Kapat</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOAST BİLDİRİM -->
-  <div id="toast-notification" class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl text-sm font-medium transition-all duration-300 transform translate-y-12 opacity-0 pointer-events-none">
-    <span id="toast-icon">✓</span>
-    <span id="toast-message">Bildirim mesajı</span>
-  </div>
-
-  <!-- SCRIPTS -->
-  <script src="js/audio-effects.js"></script>
-  <script src="js/turkish-numbers.js"></script>
-  <script src="js/bookmarklet-generator.js"></script>
-  <script src="js/app.js"></script>
+  <footer class="border-t border-slate-800/60 py-8 text-center text-xs text-slate-500">
+    <p>&copy; 2026 e-Okul Spead. Öğretmenler İçin Sesli Not Giriş Asistanı.</p>
+  </footer>
 
   <script>
-    // Oturum ve Yetki Kontrolü
-    document.addEventListener('DOMContentLoaded', async () => {
-      const user = await window.db.authGuard();
-      if (!user) return; // authGuard zaten yönlendirme yaptı
+    // Sekme Değiştirici
+    function switchAuthTab(tab) {
+      const tabLogin = document.getElementById('tab-login');
+      const tabReg = document.getElementById('tab-register');
+      const formLogin = document.getElementById('form-login');
+      const formReg = document.getElementById('form-register');
 
-      // Kullanıcı adını üst bara yaz
-      const nameEl = document.getElementById('user-display-name');
-      if (nameEl) {
-        nameEl.textContent = (user.profile && user.profile.full_name) || user.email.split('@')[0];
+      if (tab === 'login') {
+        tabLogin.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition bg-indigo-600 text-white shadow-sm';
+        tabReg.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition text-slate-400 hover:text-white';
+        formLogin.classList.remove('hidden');
+        formReg.classList.add('hidden');
+      } else {
+        tabReg.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition bg-indigo-600 text-white shadow-sm';
+        tabLogin.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition text-slate-400 hover:text-white';
+        formReg.classList.remove('hidden');
+        formLogin.classList.add('hidden');
       }
+    }
 
-      // Eğer kullanıcı admin ise Admin Paneli butonunu göster
-      if (user.profile && user.profile.role === 'admin') {
-        const adminBtn = document.getElementById('nav-admin-btn');
-        if (adminBtn) adminBtn.classList.remove('hidden');
+    // Google ile Giriş
+    async function handleGoogleSignIn() {
+      try {
+        await window.db.signInWithGoogle();
+      } catch (err) {
+        alert('Google ile giriş hatası: ' + err.message);
+      }
+    }
+
+    // E-posta ile Giriş
+    async function handleEmailSignIn(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const pass = document.getElementById('login-password').value;
+      const errorBox = document.getElementById('login-error');
+      const btn = document.getElementById('btn-login-submit');
+
+      errorBox.classList.add('hidden');
+      btn.textContent = 'Giriş yapılıyor...';
+      btn.disabled = true;
+
+      try {
+        await window.db.signIn(email, pass);
+        // Kullanıcının yetkisine göre yönlendir
+        const user = await window.db.getCurrentUser();
+        if (user && user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
+          window.location.href = 'panel.html';
+        } else {
+          window.location.href = 'bekleme.html';
+        }
+      } catch (err) {
+        errorBox.textContent = 'Giriş başarısız: ' + (err.message || 'E-posta veya şifre hatalı!');
+        errorBox.classList.remove('hidden');
+      } finally {
+        btn.textContent = 'Giriş Yap';
+        btn.disabled = false;
+      }
+    }
+
+    // E-posta ile Kayıt Ol
+    async function handleEmailSignUp(e) {
+      e.preventDefault();
+      const name = document.getElementById('reg-fullname').value;
+      const email = document.getElementById('reg-email').value;
+      const pass = document.getElementById('reg-password').value;
+      const errorBox = document.getElementById('register-error');
+      const successBox = document.getElementById('register-success');
+      const btn = document.getElementById('btn-reg-submit');
+
+      errorBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+      btn.textContent = 'Kaydediliyor...';
+      btn.disabled = true;
+
+      try {
+        await window.db.signUp(email, pass, name);
+        successBox.textContent = 'Kaydınız başarıyla oluşturuldu! Şimdi giriş yapabilirsiniz.';
+        successBox.classList.remove('hidden');
+        setTimeout(() => {
+          switchAuthTab('login');
+          document.getElementById('login-email').value = email;
+        }, 1500);
+      } catch (err) {
+        errorBox.textContent = 'Kayıt başarısız: ' + (err.message || 'Bir hata oluştu!');
+        errorBox.classList.remove('hidden');
+      } finally {
+        btn.textContent = 'Kayıt Ol ve Başvur';
+        btn.disabled = false;
+      }
+    }
+
+    // Sayfa açıldığında oturumu kontrol et
+    document.addEventListener('DOMContentLoaded', async () => {
+      const user = await window.db.getCurrentUser();
+      if (user) {
+        if (user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
+          window.location.href = 'panel.html';
+        } else {
+          window.location.href = 'bekleme.html';
+        }
       }
     });
   </script>

@@ -87,7 +87,7 @@ window.db = {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/index.html'
+        redirectTo: window.location.origin + '/panel.html'
       }
     });
     if (error) throw error;
@@ -98,16 +98,16 @@ window.db = {
   async signOut() {
     if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   },
 
   // Yetki Kontrolü (Sayfa Koruyucu)
   async authGuard(requiredRole = null) {
     const user = await this.getCurrentUser();
     
-    // Giriş yapılmamışsa login sayfasına at
+    // Giriş yapılmamışsa ana tanıtım & giriş sayfasına at
     if (!user) {
-      window.location.href = 'login.html';
+      window.location.href = 'index.html';
       return null;
     }
 
@@ -116,13 +116,13 @@ window.db = {
 
     // Eğer admin yetkisi isteniyorsa
     if (requiredRole === 'admin' && role !== 'admin') {
-      window.location.href = 'index.html';
+      window.location.href = 'panel.html';
       return null;
     }
 
-    // Kullanıcının erişimi kapalıysa ve admin değilse waiting sayfasına at
+    // Kullanıcının erişimi kapalıysa ve admin değilse bekleme sayfasına at
     if (isActive !== 1 && role !== 'admin') {
-      window.location.href = 'waiting.html';
+      window.location.href = 'bekleme.html';
       return null;
     }
 
