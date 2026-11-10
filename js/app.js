@@ -737,11 +737,32 @@ class EOkulSpeadApp {
     const qCountInput = document.getElementById('setting-question-count');
     if (qCountInput) qCountInput.value = this.settings.questionCount;
 
+    const currentQBadge = document.getElementById('current-q-badge');
+    if (currentQBadge) currentQBadge.textContent = `${this.settings.questionCount} Soru`;
+
+    const schemaBadge = document.getElementById('schema-q-count-badge');
+    if (schemaBadge) schemaBadge.textContent = `Soru Puanları (${this.settings.questionCount} adet)`;
+
     const autoSortCheck = document.getElementById('setting-auto-sort');
     if (autoSortCheck) autoSortCheck.checked = this.settings.autoSort;
 
     const soundCheck = document.getElementById('setting-sound');
     if (soundCheck) soundCheck.checked = this.settings.soundEnabled;
+
+    // Hızlı soru butonlarının aktif/pasif stillerini güncelle (seçili olanın ışığı yansın)
+    const activeClasses = ['bg-indigo-600', 'text-white', 'font-bold', 'shadow-sm'];
+    const inactiveClasses = ['bg-slate-100', 'text-slate-600', 'font-medium', 'hover:bg-indigo-100', 'hover:text-indigo-700'];
+
+    document.querySelectorAll('[data-q-count]').forEach(btn => {
+      const qVal = parseInt(btn.getAttribute('data-q-count'), 10);
+      if (qVal === this.settings.questionCount) {
+        btn.classList.remove(...inactiveClasses);
+        btn.classList.add(...activeClasses);
+      } else {
+        btn.classList.remove(...activeClasses);
+        btn.classList.add(...inactiveClasses);
+      }
+    });
   }
 
   logSpeechHistory(text, status) {
@@ -814,8 +835,8 @@ class EOkulSpeadApp {
     }
 
     document.querySelectorAll('[data-q-count]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const count = e.target.getAttribute('data-q-count');
+      btn.addEventListener('click', () => {
+        const count = btn.getAttribute('data-q-count');
         this.updateQuestionCount(count);
       });
     });
