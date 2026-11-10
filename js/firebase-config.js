@@ -232,5 +232,12 @@ window.db = {
     await firestore.collection('profiles').doc(userId).update({
       is_active: newStatus
     });
+  },
+
+  // 9. Admin Paneli İçin: Kullanıcı Profilini Sil
+  async deleteProfile(userId) {
+    if (!firestore) throw new Error('Firestore hazır değil');
+    await firestore.collection('profiles').doc(userId).delete();
+    return true;
   }
 };
