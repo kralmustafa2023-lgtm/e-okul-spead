@@ -62,13 +62,18 @@
     async function initWaitingPage() {
       const user = await window.db.getCurrentUser();
       if (!user) {
+        // Eğer OAuth devam ediyorsa hemen atma
+        if (window.location.search.includes('code=') || window.location.hash.includes('access_token')) {
+          setTimeout(initWaitingPage, 1000);
+          return;
+        }
         window.location.href = 'index.html';
         return;
       }
 
       document.getElementById('user-email-text').textContent = user.email;
 
-      // Eğer admin zaten onay vermişse doğrudan not paneline gönder
+      // Eğer kullanıcının erişimi açıksa (1) veya admin ise doğrudan not paneline gönder
       if (user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
         window.location.href = 'panel.html';
       }
