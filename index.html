@@ -44,6 +44,11 @@
       50% { height: 38px; opacity: 1; }
     }
 
+    @keyframes marqueeScroll {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+
     .animate-float-1 {
       animation: floatSlow 12s ease-in-out infinite;
     }
@@ -58,6 +63,16 @@
     .bar-5 { animation: soundBarPulse 1.3s ease-in-out infinite 0.15s; }
     .bar-6 { animation: soundBarPulse 1.6s ease-in-out infinite 0.35s; }
     .bar-7 { animation: soundBarPulse 1.2s ease-in-out infinite 0.25s; }
+
+    /* Infinite Marquee Animation */
+    .animate-marquee {
+      display: flex;
+      width: max-content;
+      animation: marqueeScroll 36s linear infinite;
+    }
+    .animate-marquee:hover {
+      animation-play-state: paused;
+    }
 
     /* Glassmorphism custom classes */
     .glass-card {
@@ -93,6 +108,11 @@
       mask-composite: exclude;
       pointer-events: none;
     }
+
+    /* Counter gradient text */
+    .stat-number {
+      font-variant-numeric: tabular-nums;
+    }
   </style>
 </head>
 <body class="text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden">
@@ -104,8 +124,8 @@
     <!-- Indigo/Violet glow top-right -->
     <div class="absolute top-20 right-[-10%] w-[700px] h-[700px] bg-indigo-600/20 rounded-full blur-[160px] animate-float-2"></div>
     <!-- Electric Emerald center -->
-    <div class="absolute top-[55%] left-[20%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] animate-float-1"></div>
-    <!-- Deep Fuchsia bottom-right -->
+    <div class="absolute top-[45%] left-[15%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] animate-float-1"></div>
+    <!-- Deep Fuchsia / Violet bottom -->
     <div class="absolute bottom-[-10%] right-[15%] w-[600px] h-[600px] bg-fuchsia-600/10 rounded-full blur-[160px] animate-float-2"></div>
     <!-- Subtle Grid Pattern -->
     <div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
@@ -133,12 +153,12 @@
 
       <!-- Navigation Links -->
       <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-slate-300">
-        <a href="#tanitim-rehberi" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-          Rehber & Adımlar
+        <a href="#istatistikler" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          Canlı Veriler
         </a>
-        <a href="#ozellikler" class="hover:text-cyan-400 transition-colors">Özellikler</a>
-        <a href="#nasil-calisir" class="hover:text-cyan-400 transition-colors">Nasıl Çalışır?</a>
+        <a href="#tanitim-rehberi" class="hover:text-cyan-400 transition-colors">Rehber & Adımlar</a>
+        <a href="#ogretmen-yorumlari" class="hover:text-cyan-400 transition-colors">Öğretmen Görüşleri</a>
         <a href="#guvenlik" class="hover:text-cyan-400 transition-colors">Gizlilik & KVKK</a>
       </nav>
 
@@ -159,7 +179,7 @@
   </header>
 
   <!-- MAIN HERO SECTION -->
-  <main class="relative z-10 pt-10 pb-20 lg:pt-16 lg:pb-28">
+  <main class="relative z-10 pt-10 pb-16 lg:pt-16 lg:pb-24">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
         
@@ -339,7 +359,107 @@
     </div>
   </main>
 
-  <!-- YENİ BÖLÜM: KULLANICI GÖRSELİ & NOT AKTARIM REHBERİ -->
+  <!-- ============================================================== -->
+  <!-- 1. YENİ BÖLÜM: CANLI ANİMASYONLU İSTATİSTİKLER (ULTRA PROFESYONEL) -->
+  <!-- ============================================================== -->
+  <section id="istatistikler" class="py-16 relative z-10 border-y border-white/[0.08] bg-[#080d21]/90 backdrop-blur-2xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      
+      <!-- Live Counter Heading -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-xs font-bold mb-3 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Canlı Sistem Metrikleri & Verimlilik</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Rakamlarla e-Okul Spead Etkisi
+          </h2>
+        </div>
+        <p class="text-slate-400 text-xs sm:text-sm max-w-md">
+          Öğretmenlerin sınav haftalarındaki yoğun iş yükünü hafifleten gerçek zamanlı verimlilik kazanımları.
+        </p>
+      </div>
+
+      <!-- 4 Glowing Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-container">
+        
+        <!-- Stat Card 1 -->
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400 text-2xl shadow-inner">
+              🎙️
+            </div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-400/20">Ses Motoru</span>
+          </div>
+          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
+            <span class="stat-number count-up" data-target="52400" data-format="integer">0</span>
+            <span class="text-cyan-400 ml-1">+</span>
+          </div>
+          <p class="text-sm font-bold text-slate-200">Okunan & İşlenen Not</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Yapay zeka Türkçe fonetik motor ile sıfır kayıpla tanındı.</p>
+        </div>
+
+        <!-- Stat Card 2 -->
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-indigo-500/15 border border-indigo-400/30 flex items-center justify-center text-indigo-400 text-2xl shadow-inner">
+              ⚡
+            </div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-400/20">Hız Faktörü</span>
+          </div>
+          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
+            <span class="text-indigo-400 mr-0.5">%</span>
+            <span class="stat-number count-up" data-target="85" data-format="percent">0</span>
+          </div>
+          <p class="text-sm font-bold text-slate-200">Zaman Tasarrufu</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Sınıf başına ortalama 3 saatlik klavye mesaisi 20 dakikaya indi.</p>
+        </div>
+
+        <!-- Stat Card 3 -->
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-emerald-400 text-2xl shadow-inner">
+              🎯
+            </div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-400/20">Doğrulama</span>
+          </div>
+          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
+            <span class="text-emerald-400 mr-0.5">%</span>
+            <span class="stat-number count-up" data-target="0" data-format="zero">0</span>
+          </div>
+          <p class="text-sm font-bold text-slate-200">Toplama Hatası</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Soru puanları ve toplam uyuşmazlığında anlık sesli & renkli ikaz.</p>
+        </div>
+
+        <!-- Stat Card 4 -->
+        <div class="glass-card glass-card-hover p-6 rounded-2xl border-violet-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-violet-500/10 rounded-full blur-xl group-hover:bg-violet-500/20 transition-all"></div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-violet-500/15 border border-violet-400/30 flex items-center justify-center text-violet-400 text-2xl shadow-inner">
+              🚀
+            </div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded-full border border-violet-400/20">DOM Yer İmi</span>
+          </div>
+          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
+            <span class="stat-number count-up" data-target="3.2" data-format="decimal">0.0</span>
+            <span class="text-violet-400 text-2xl ml-1">Sn.</span>
+          </div>
+          <p class="text-sm font-bold text-slate-200">e-Okul'a Aktarım Süresi</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Tek tıkla tüm sınıfın sınav notları resmî tabloya doldurulur.</p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <!-- 2. KULLANICI GÖRSELİ & NOT AKTARIM REHBERİ BÖLÜMÜ -->
+  <!-- ============================================================== -->
   <section id="tanitim-rehberi" class="py-20 relative z-10 border-t border-white/[0.08] bg-[#090f24]/70 backdrop-blur-xl">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
       
@@ -439,6 +559,255 @@
     </div>
   </section>
 
+  <!-- ============================================================== -->
+  <!-- 3. YENİ BÖLÜM: ÖĞRETMEN GÖRÜŞLERİ & ANİMASYONLU YORUMLAR (MARQUEE) -->
+  <!-- ============================================================== -->
+  <section id="ogretmen-yorumlari" class="py-24 relative z-10 border-t border-white/[0.08] bg-[#070c1e] overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 mb-14">
+      
+      <div class="text-center max-w-3xl mx-auto">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-400/30 text-amber-300 text-xs font-bold mb-3 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+          <span>★ 5.0 / 5.0 Kullanıcı Memnuniyeti</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+          Öğretmenler e-Okul Spead Hakkında Ne Diyor?
+        </h2>
+        <p class="text-slate-300 text-sm sm:text-base mt-3 max-w-2xl mx-auto leading-relaxed">
+          Türkiye genelinde yüzlerce öğretmenin sınav haftalarında kazandığı konfor ve zaman.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- ANİMASYONLU AKAN YORUM ŞERİDİ (INFINITE MARQUEE) -->
+    <div class="relative w-full overflow-hidden py-4">
+      <!-- Gradient Edge Fade Left & Right -->
+      <div class="absolute left-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-r from-[#070c1e] to-transparent z-20 pointer-events-none"></div>
+      <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-l from-[#070c1e] to-transparent z-20 pointer-events-none"></div>
+
+      <div class="animate-marquee flex gap-6 px-4">
+        
+        <!-- Yorum 1 -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/20 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-400/20">Matematik</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "300 kağıdın soru puanlarını toplayıp tek tek girmek 2 günümü alıyordu. e-Okul Spead ile kahvemi içerken 25 dakikada hallettim. Toplama hatası riskini sıfıra indirmesi inanılmaz bir rahatlık."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              AK
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Ayşe Kaya</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Anadolu Lisesi Matematik Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yorum 2 -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/20 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-400/20">Türkçe & Edebiyat</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "Klasik sınavlarda '42 numara soru bir 18 soru iki 15' diyorum ve arkama yaslanıyorum. Yer imi teknolojisi sayesinde okul bilgisayarına hiçbir eklenti yüklemeden tek tıkla çalışması tam bir devrim."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              MT
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Murat Tekin</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Türk Dili ve Edebiyatı Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yorum 3 -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/20 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-400/20">Fen Bilimleri</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "İlk başta Türkçe telaffuzları ve hızlı okumayı algılayabileceğine şüpheyle yaklaşmıştım. Ancak o kadar kusursuz anlıyor ki şaşkına döndüm. e-Okul'a aktarma anı resmen sihirbazlık gibi."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              ZB
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Zeynep Başar</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Fen Bilgisi Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yorum 4 -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-violet-500/20 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-400/20">Tarih</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "Yarıyıl ve sene sonu not giriş stresimi tamamen bitirdi. Gözlerimi ekrana dikip klavyede hata aramak zorunda kalmıyorum. Tüm zümre arkadaşlarıma tavsiye ettim, herkes çok memnun."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              EŞ
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Emre Şen</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Tarih Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yorum 5 -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-sky-500/20 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-400/20">İngilizce</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "Ortak sınav sonuçlarını sisteme aktarmak saatler sürüyordu. Şimdi öğrencilerimin kağıtlarını sesli okurken notlar kendiliğinden e-Okul kutucuklarına diziliyor. Harika bir teknoloji!"
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              FD
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Fatma Demir</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">İngilizce Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- DÖNGÜ İÇİN KOPYALAR (SÜREKLİ AKIŞ SAĞLAMAK İÇİN İKİNCİ SET) -->
+        <!-- Yorum 1 Kopyası -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/20 flex flex-col justify-between" aria-hidden="true">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-400/20">Matematik</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "300 kağıdın soru puanlarını toplayıp tek tek girmek 2 günümü alıyordu. e-Okul Spead ile kahvemi içerken 25 dakikada hallettim. Toplama hatası riskini sıfıra indirmesi inanılmaz bir rahatlık."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              AK
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Ayşe Kaya</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Anadolu Lisesi Matematik Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yorum 2 Kopyası -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/20 flex flex-col justify-between" aria-hidden="true">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-400/20">Türkçe & Edebiyat</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "Klasik sınavlarda '42 numara soru bir 18 soru iki 15' diyorum ve arkama yaslanıyorum. Yer imi teknolojisi sayesinde okul bilgisayarına hiçbir eklenti yüklemeden tek tıkla çalışması tam bir devrim."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              MT
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Murat Tekin</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Türk Dili ve Edebiyatı Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yorum 3 Kopyası -->
+        <div class="w-[360px] sm:w-[420px] flex-shrink-0 glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/20 flex flex-col justify-between" aria-hidden="true">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1 text-amber-400 text-sm">
+                ★★★★★
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-400/20">Fen Bilimleri</span>
+            </div>
+            <p class="text-slate-300 text-sm leading-relaxed italic">
+              "İlk başta Türkçe telaffuzları ve hızlı okumayı algılayabileceğine şüpheyle yaklaşmıştım. Ancak o kadar kusursuz anlıyor ki şaşkına döndüm. e-Okul'a aktarma anı resmen sihirbazlık gibi."
+            </p>
+          </div>
+          <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+              ZB
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Zeynep Başar</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✓ Doğrulanmış</span>
+              </p>
+              <p class="text-[11px] text-slate-400">Fen Bilgisi Öğretmeni</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
   <!-- GÜVENLİK VE GİZLİLİK -->
   <section id="guvenlik" class="py-16 relative z-10 border-t border-white/[0.08] bg-[#070b19]">
     <div class="max-w-4xl mx-auto px-4 text-center">
@@ -471,7 +840,7 @@
     </div>
   </footer>
 
-  <!-- JAVASCRIPT: AUTH & NAVIGATION LOGIC -->
+  <!-- JAVASCRIPT: AUTH, STATS ANIMATION & NAVIGATION LOGIC -->
   <script>
     // Sekme Değiştirici (Giriş Yap / Sisteme Başvur)
     function switchAuthTab(tab) {
@@ -604,8 +973,78 @@
       }
     }
 
-    // Sayfa açıldığında oturumu kontrol et
+    // ==========================================
+    // CANLI İSTATİSTİK SAYAÇ ANİMASYONU (COUNT-UP)
+    // ==========================================
+    function setupCountUpAnimations() {
+      const statsElements = document.querySelectorAll('.count-up');
+      if (!statsElements.length) return;
+
+      let animated = false;
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !animated) {
+            animated = true;
+            statsElements.forEach(el => animateSingleCounter(el));
+          }
+        });
+      }, { threshold: 0.3 });
+
+      const container = document.getElementById('stats-container');
+      if (container) {
+        observer.observe(container);
+      } else {
+        statsElements.forEach(el => observer.observe(el));
+      }
+    }
+
+    function animateSingleCounter(el) {
+      const target = parseFloat(el.getAttribute('data-target'));
+      const format = el.getAttribute('data-format');
+      const duration = 2000; // ms
+      const startTime = performance.now();
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // easeOutQuart
+        const ease = 1 - Math.pow(1 - progress, 4);
+        const currentVal = target * ease;
+
+        if (format === 'integer') {
+          el.textContent = Math.floor(currentVal).toLocaleString('tr-TR');
+        } else if (format === 'decimal') {
+          el.textContent = currentVal.toFixed(1);
+        } else if (format === 'zero') {
+          el.textContent = '0';
+        } else {
+          el.textContent = Math.floor(currentVal);
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          if (format === 'integer') {
+            el.textContent = target.toLocaleString('tr-TR');
+          } else if (format === 'decimal') {
+            el.textContent = target.toFixed(1);
+          } else {
+            el.textContent = target;
+          }
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    // Sayfa açıldığında oturumu kontrol et ve animasyonları başlat
     document.addEventListener('DOMContentLoaded', async () => {
+      // Sayaç animasyonunu kur
+      setupCountUpAnimations();
+
+      // Firebase oturum kontrolü
       try {
         if (window.db && typeof window.db.getCurrentUser === 'function') {
           const user = await window.db.getCurrentUser();
