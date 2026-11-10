@@ -27,6 +27,10 @@
   
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Supabase JS & Auth Guard -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
@@ -48,10 +52,23 @@
 
       <!-- Hızlı Bağlantılar / Durum -->
       <div class="flex items-center gap-3">
+        <!-- Admin Butonu (Sadece Admin görür) -->
+        <a id="nav-admin-btn" href="admin.html" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm">
+          <span>👑</span> Admin Paneli
+        </a>
+
         <button onclick="document.getElementById('bookmarklet-modal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-          Yer İmi Kurulumu (Nasıl Eklenir?)
+          Yer İmi Kurulumu
         </button>
+
+        <!-- Kullanıcı Menüsü -->
+        <div class="flex items-center gap-2 pl-2 border-l border-slate-200 text-xs">
+          <span id="user-display-name" class="font-bold text-slate-700 max-w-[120px] truncate">...</span>
+          <button onclick="window.db.signOut()" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition" title="Çıkış Yap">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -366,5 +383,25 @@
   <script src="js/turkish-numbers.js"></script>
   <script src="js/bookmarklet-generator.js"></script>
   <script src="js/app.js"></script>
+
+  <script>
+    // Oturum ve Yetki Kontrolü
+    document.addEventListener('DOMContentLoaded', async () => {
+      const user = await window.db.authGuard();
+      if (!user) return; // authGuard zaten yönlendirme yaptı
+
+      // Kullanıcı adını üst bara yaz
+      const nameEl = document.getElementById('user-display-name');
+      if (nameEl) {
+        nameEl.textContent = (user.profile && user.profile.full_name) || user.email.split('@')[0];
+      }
+
+      // Eğer kullanıcı admin ise Admin Paneli butonunu göster
+      if (user.profile && user.profile.role === 'admin') {
+        const adminBtn = document.getElementById('nav-admin-btn');
+        if (adminBtn) adminBtn.classList.remove('hidden');
+      }
+    });
+  </script>
 </body>
 </html>
