@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>e-Okul Spead - Sesli Öğretmen Not Asistanı | Giriş ve Tanıtım</title>
+  <!-- Firebase SDK & Auth Guard -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js"></script>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -248,8 +251,18 @@
     async function handleGoogleSignIn() {
       try {
         await window.db.signInWithGoogle();
+        const user = await window.db.getCurrentUser();
+        if (user) {
+          if (user.profile && (user.profile.is_active === 1 || user.profile.role === 'admin')) {
+            window.location.href = 'panel.html';
+          } else {
+            window.location.href = 'bekleme.html';
+          }
+        }
       } catch (err) {
-        alert('Google ile giriş hatası: ' + err.message);
+        if (err.code !== 'auth/popup-closed-by-user') {
+          alert('Google ile giriş hatası: ' + (err.message || err));
+        }
       }
     }
 

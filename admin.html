@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Yönetici Paneli - e-Okul Spead</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js"></script>
+  <!-- Firebase SDK & Auth Guard -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -122,14 +125,7 @@
       tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs animate-pulse">Veri tabanından kullanıcılar getiriliyor...</td></tr>`;
 
       try {
-        const { data, error } = await window.db.client
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        allUsers = data || [];
+        allUsers = await window.db.getAllProfiles();
         renderUsers(allUsers);
         updateStats(allUsers);
       } catch (err) {
@@ -191,13 +187,7 @@
 
     async function toggleUserAccess(userId, newStatus) {
       try {
-        const { error } = await window.db.client
-          .from('profiles')
-          .update({ is_active: newStatus })
-          .eq('id', userId);
-
-        if (error) throw error;
-
+        await window.db.updateProfileAccess(userId, newStatus);
         // Listeyi yenile
         loadUsers();
       } catch (err) {
