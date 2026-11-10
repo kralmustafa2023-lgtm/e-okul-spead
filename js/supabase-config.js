@@ -1,6 +1,6 @@
 /**
  * Supabase İstemci Yapılandırması ve Yardımcı Fonksiyonlar
- * e-Okul Spead v7.0
+ * e-Okul Spead v7.1 - OAuth ve Session Düzeltmeleri
  */
 
 const SUPABASE_URL = 'https://kfeqmwebswkqqekzkjca.supabase.co';
@@ -10,7 +10,13 @@ const SUPABASE_ANON_KEY = 'sb_publishable_Kd_CkW32m0gfXBaQJ2qaxw_58_8XI8M';
 let supabaseClient = null;
 
 if (window.supabase) {
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
 } else {
   console.error('Supabase kütüphanesi yüklenemedi!');
 }
@@ -18,22 +24,72 @@ if (window.supabase) {
 window.db = {
   client: supabaseClient,
 
-  // Aktif kullanıcıyı al
+  // Aktif kullanıcıyı al (OAuth hash/token bekleme garantili)
   async getCurrentUser() {
     if (!supabaseClient) return null;
-    const { data: { user }, error } = await supabaseClient.auth.getUser();
-    if (error || !user) return null;
 
-    // Profil bilgilerini al (rol ve is_active)
-    const { data: profile } = await supabaseClient
+    // 1. Önce aktif oturumu kontrol et
+    let { data: { session } } = await supabaseClient.auth.getSession();
+
+    // Eğer URL'de token varsa ama session henüz oturmadıysa kısa bir süre bekle
+    if (!session && (window.location.hash.includes('access_token') || window.location.search.includes('code='))) {
+      for (let i = 0; i < 5; i++) {
+        await new Promise(r => setTimeout(r, 300));
+        const res = await supabaseClient.auth.getSession();
+        if (res.data && res.data.session) {
+          session = res.data.session;
+          break;
+        }
+      }
+    }
+
+    if (!session || !session.user) return null;
+    const user = session.user;
+
+    // 2. Profil bilgilerini çek
+    let { data: profile } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
+
+    // Eğer sen giriş yaptıysan otomatik admin ve aktif ol
+    const isAdminEmail = user.email === 'kralmustafa2023@gmail.com';
+
+    // Profil yoksa otomatik oluştur
+    if (!profile) {
+      const defaultRole = isAdminEmail ? 'admin' : 'user';
+      const defaultActive = isAdminEmail ? 1 : 0;
+      const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
+
+      try {
+        const { data: newProfile } = await supabaseClient
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: user.email,
+            full_name: fullName,
+            role: defaultRole,
+            is_active: defaultActive
+          })
+          .select()
+          .maybeSingle();
+
+        profile = newProfile || { role: defaultRole, is_active: defaultActive, full_name: fullName };
+      } catch (e) {
+        console.warn('Profil otomatik oluşturma hatası:', e);
+        profile = { role: defaultRole, is_active: defaultActive, full_name: fullName };
+      }
+    } else if (isAdminEmail && (profile.role !== 'admin' || profile.is_active !== 1)) {
+      // Eğer kendi mailinse ve admin değilse anında güncelle
+      profile.role = 'admin';
+      profile.is_active = 1;
+      await supabaseClient.from('profiles').update({ role: 'admin', is_active: 1 }).eq('id', user.id);
+    }
 
     return {
       ...user,
-      profile: profile || { role: 'user', is_active: 0 }
+      profile: profile || { role: isAdminEmail ? 'admin' : 'user', is_active: isAdminEmail ? 1 : 0 }
     };
   },
 
@@ -51,22 +107,6 @@ window.db = {
     });
 
     if (error) throw error;
-
-    // Profil kaydı tetikleyici ile gelmediyse elle ekle/güncelle
-    if (data.user) {
-      try {
-        await supabaseClient.from('profiles').upsert({
-          id: data.user.id,
-          email: email,
-          full_name: fullName || email.split('@')[0],
-          role: 'user',
-          is_active: 0 // Varsayılan kapalı
-        });
-      } catch (e) {
-        console.warn('Profil upsert hatası:', e);
-      }
-    }
-
     return data;
   },
 
@@ -84,10 +124,11 @@ window.db = {
   // Google ile Giriş
   async signInWithGoogle() {
     if (!supabaseClient) throw new Error('Supabase hazır değil');
+    const redirectUrl = window.location.origin + '/panel.html';
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/panel.html'
+        redirectTo: redirectUrl
       }
     });
     if (error) throw error;
@@ -105,7 +146,7 @@ window.db = {
   async authGuard(requiredRole = null) {
     const user = await this.getCurrentUser();
     
-    // Giriş yapılmamışsa ana tanıtım & giriş sayfasına at
+    // Giriş yapılmamışsa ana tanıtım & giriş sayfasına yönlendir
     if (!user) {
       window.location.href = 'index.html';
       return null;
