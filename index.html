@@ -381,75 +381,58 @@
         </p>
       </div>
 
-      <!-- 4 Glowing Metric Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-container">
+      <!-- 3 Glowing Metric Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="stats-container">
         
-        <!-- Stat Card 1 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-cyan-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400 text-2xl shadow-inner">
-              🎙️
-            </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-400/20">Ses Motoru</span>
-          </div>
-          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
-            <span class="stat-number count-up" data-target="52400" data-format="integer">0</span>
-            <span class="text-cyan-400 ml-1">+</span>
-          </div>
-          <p class="text-sm font-bold text-slate-200">Okunan & İşlenen Not</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Yapay zeka Türkçe fonetik motor ile sıfır kayıpla tanındı.</p>
-        </div>
-
-        <!-- Stat Card 2 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-indigo-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
+        <!-- Stat Card 1: Zaman Tasarrufu -->
+        <div class="glass-card glass-card-hover p-7 rounded-2xl border-indigo-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-indigo-500/15 border border-indigo-400/30 flex items-center justify-center text-indigo-400 text-2xl shadow-inner">
               ⚡
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-400/20">Hız Faktörü</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-400/20">Hız & Verim</span>
           </div>
-          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
+          <div class="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline">
             <span class="text-indigo-400 mr-0.5">%</span>
             <span class="stat-number count-up" data-target="85" data-format="percent">0</span>
           </div>
-          <p class="text-sm font-bold text-slate-200">Zaman Tasarrufu</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Sınıf başına ortalama 3 saatlik klavye mesaisi 20 dakikaya indi.</p>
+          <p class="text-base font-bold text-slate-100">Zaman Tasarrufu</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Sınıf başına ortalama 3 saatlik klavye mesaisi 20 dakikaya iner.</p>
         </div>
 
-        <!-- Stat Card 3 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-emerald-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
+        <!-- Stat Card 2: Toplama Hatası -->
+        <div class="glass-card glass-card-hover p-7 rounded-2xl border-emerald-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-emerald-400 text-2xl shadow-inner">
               🎯
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-400/20">Doğrulama</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-400/20">Matematik Denetimi</span>
           </div>
-          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
+          <div class="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline">
             <span class="text-emerald-400 mr-0.5">%</span>
             <span class="stat-number count-up" data-target="0" data-format="zero">0</span>
           </div>
-          <p class="text-sm font-bold text-slate-200">Toplama Hatası</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Soru puanları ve toplam uyuşmazlığında anlık sesli & renkli ikaz.</p>
+          <p class="text-base font-bold text-slate-100">Toplama Hatası</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Soru puanları ve toplam uyuşmazlığında anlık sesli ve renkli ikaz.</p>
         </div>
 
-        <!-- Stat Card 4 -->
-        <div class="glass-card glass-card-hover p-6 rounded-2xl border-violet-500/25 relative overflow-hidden group">
-          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-violet-500/10 rounded-full blur-xl group-hover:bg-violet-500/20 transition-all"></div>
+        <!-- Stat Card 3: e-Okul Aktarımı -->
+        <div class="glass-card glass-card-hover p-7 rounded-2xl border-cyan-500/25 relative overflow-hidden group">
+          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-violet-500/15 border border-violet-400/30 flex items-center justify-center text-violet-400 text-2xl shadow-inner">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400 text-2xl shadow-inner">
               🚀
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded-full border border-violet-400/20">DOM Yer İmi</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-400/20">Sihirli Yer İmi</span>
           </div>
-          <div class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1 flex items-baseline">
-            <span class="stat-number count-up" data-target="3.2" data-format="decimal">0.0</span>
-            <span class="text-violet-400 text-2xl ml-1">Sn.</span>
+          <div class="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline">
+            <span class="stat-number count-up" data-target="1.2" data-format="decimal">0.0</span>
+            <span class="text-cyan-400 text-2xl ml-1">Sn.</span>
           </div>
-          <p class="text-sm font-bold text-slate-200">e-Okul'a Aktarım Süresi</p>
-          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Tek tıkla tüm sınıfın sınav notları resmî tabloya doldurulur.</p>
+          <p class="text-base font-bold text-slate-100">e-Okul'a Aktarım Süresi</p>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">Yer imine tek tıkla tüm sınıfın notları anında resmi tabloya dökülür.</p>
         </div>
 
       </div>
