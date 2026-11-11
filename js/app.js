@@ -18,6 +18,10 @@ class EOkulSpeadApp {
     this.isListening = false;
     this.speechSupported = false;
 
+    // GİRMEYEN ÖĞRENCİLER İÇİN ÖZEL SES TANIMA
+    this.absentRecognition = null;
+    this.isAbsentListening = false;
+
     // Gerçek zamanlı ses görselleştirici
     this.audioContext = null;
     this.audioAnalyser = null;
@@ -34,6 +38,7 @@ class EOkulSpeadApp {
   init() {
     this.loadFromStorage();
     this.setupSpeechRecognition();
+    this.setupAbsentRecognition();
     this.renderSettings();
     this.renderTable();
     this.renderLiveSlots();
@@ -201,6 +206,166 @@ class EOkulSpeadApp {
     };
   }
 
+  // --- SINAVA GİRMEYEN ÖĞRENCİLER İÇİN ÖZEL SES TANIMA MOTORU ---
+  setupAbsentRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    this.absentRecognition = new SpeechRecognition();
+    this.absentRecognition.lang = 'tr-TR';
+    this.absentRecognition.continuous = true;
+    this.absentRecognition.interimResults = true;
+    this.absentRecognition.maxAlternatives = 1;
+
+    this.absentRecognition.onstart = () => {
+      this.isAbsentListening = true;
+      this.updateAbsentMicUI(true);
+    };
+
+    this.absentRecognition.onend = () => {
+      if (this.isAbsentListening) {
+        try {
+          this.absentRecognition.start();
+        } catch (e) {
+          setTimeout(() => {
+            if (this.isAbsentListening) {
+              try { this.absentRecognition.start(); } catch(err){}
+            }
+          }, 200);
+        }
+      } else {
+        this.updateAbsentMicUI(false);
+      }
+    };
+
+    this.absentRecognition.onerror = (event) => {
+      if (event.error === 'not-allowed') {
+        this.showToast('Girmeyen mikrofonu için izin verilmedi!', 'error');
+        this.isAbsentListening = false;
+        this.updateAbsentMicUI(false);
+      }
+    };
+
+    this.absentRecognition.onresult = (event) => {
+      let finalSegment = '';
+      let interimSegment = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalSegment += ' ' + text;
+        } else {
+          interimSegment += ' ' + text;
+        }
+      }
+
+      const input = document.getElementById('absent-input-text');
+      if (input && (finalSegment || interimSegment)) {
+        input.value = (finalSegment || interimSegment).trim();
+      }
+
+      // Kesinleşen numaraları anında 0 puan olarak listeye işle
+      if (finalSegment.trim()) {
+        const numbers = TurkishNumberParser.extractNumbers(finalSegment);
+        if (numbers && numbers.length > 0) {
+          this.addAbsentStudents(numbers, finalSegment.trim());
+          if (input) input.value = '';
+        }
+      }
+    };
+  }
+
+  toggleAbsentListening() {
+    if (!this.absentRecognition) {
+      this.setupAbsentRecognition();
+    }
+    if (!this.absentRecognition) {
+      this.showToast('Tarayıcınız ses tanıma desteklemiyor. Google Chrome kullanın.', 'error');
+      return;
+    }
+
+    if (this.isAbsentListening) {
+      this.isAbsentListening = false;
+      try { this.absentRecognition.stop(); } catch(e){}
+      this.updateAbsentMicUI(false);
+      this.showToast('Girmeyen öğrenci mikrofonu durduruldu.', 'info');
+    } else {
+      // Eğer ana not mikrofonu açıksa çakışmayı önlemek için kapat
+      if (this.isListening) {
+        this.toggleListening();
+      }
+      this.isAbsentListening = true;
+      try {
+        this.absentRecognition.start();
+      } catch (e) {
+        console.warn('Absent mic start error:', e);
+      }
+      this.updateAbsentMicUI(true);
+      this.showToast('Girmeyen mikrofonu açık. Öğrenci numaralarını söyleyebilirsiniz (örn: 14, 28)...', 'info');
+    }
+  }
+
+  updateAbsentMicUI(active) {
+    const btn = document.getElementById('absent-mic-btn');
+    const badge = document.getElementById('absent-mic-status-badge');
+    const btnText = document.getElementById('absent-mic-btn-text');
+    const icon = document.getElementById('absent-mic-icon');
+    const input = document.getElementById('absent-input-text');
+
+    if (active) {
+      if (btn) {
+        btn.className = 'px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-rose-600/40 animate-pulse active:scale-95';
+      }
+      if (badge) badge.classList.remove('hidden');
+      if (btnText) btnText.textContent = 'Dinlemeyi Durdur';
+      if (icon) icon.textContent = '⏹️';
+      if (input) input.placeholder = 'Dinleniyor... Sınava girmeyen numaraları söyleyin (örn: 14, 28)...';
+    } else {
+      if (btn) {
+        btn.className = 'px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-amber-600/30 active:scale-95 group';
+      }
+      if (badge) badge.classList.add('hidden');
+      if (btnText) btnText.textContent = 'Sesle Söyle';
+      if (icon) icon.textContent = '🎤';
+      if (input) input.placeholder = "Öğrenci numaralarını söyleyin veya yazın: örn. 14 28 42";
+    }
+  }
+
+  // Sınava girmeyen öğrencileri 0 puan ile topluca ekleme metodu
+  addAbsentStudents(numbers, rawSpeech = '') {
+    if (!numbers || numbers.length === 0) return;
+
+    const uniqueNums = [...new Set(numbers)];
+    const addedList = [];
+
+    uniqueNums.forEach(no => {
+      const studentNo = parseInt(no, 10);
+      if (isNaN(studentNo) || studentNo <= 0) return;
+
+      const scores = Array(this.settings.questionCount).fill(0);
+      const studentEntry = {
+        studentNo: studentNo,
+        statedTotal: 0,
+        questionScores: scores,
+        calculatedTotal: 0,
+        totalsMatch: true,
+        hasExpectedQuestions: true,
+        status: 'PERFECT',
+        isAbsent: true
+      };
+
+      this.addOrUpdateStudent(studentEntry, rawSpeech ? `[Sınava Girmedi] ${rawSpeech}` : `[Sınava Girmedi] No: ${studentNo}`);
+      addedList.push(studentNo);
+    });
+
+    if (addedList.length > 0) {
+      this.showToast(`${addedList.join(', ')} nolu öğrenci(ler) sınava girmedi olarak (tüm puanlar 0) eklendi!`, 'success');
+      if (this.settings.soundEnabled) {
+        SoundEffects.playSuccess();
+      }
+    }
+  }
+
   // --- CANLI SLOT BESLEYİCİ (SLOT FEEDER) ---
   feedNumbers(numbers) {
     if (!numbers || numbers.length === 0) return;
@@ -314,6 +479,10 @@ class EOkulSpeadApp {
       return;
     }
 
+    if (this.isAbsentListening) {
+      this.toggleAbsentListening();
+    }
+
     if (this.isListening) {
       this.isListening = false;
       try {
@@ -369,6 +538,7 @@ class EOkulSpeadApp {
       calculatedTotal: entry.calculatedTotal,
       scores: entry.questionScores,
       status: entry.status,
+      isAbsent: entry.isAbsent !== undefined ? !!entry.isAbsent : (existingIndex >= 0 ? !!this.students[existingIndex].isAbsent : false),
       timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       rawSpeech: rawSpeech
     };
@@ -443,14 +613,16 @@ class EOkulSpeadApp {
       const isCountMismatch = student.scores.length !== this.settings.questionCount;
 
       let statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">✅ Kusursuz</span>`;
-      if (isCountMismatch) {
+      if (student.isAbsent) {
+        statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300" title="Bu öğrenci sınava girmedi olarak işaretlendi (Tüm puanlar 0)">🚫 Girmedi (0)</span>`;
+      } else if (isCountMismatch) {
         statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">⚠️ Eksik Soru</span>`;
       } else if (isMismatch) {
         statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800" title="Söylenen (${student.statedTotal}) ile soru toplamı (${student.calculatedTotal}) eşit değil!">❌ Toplam Farkı</span>`;
       }
 
       bodyHtml += `
-        <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${isMismatch ? 'bg-rose-50/20' : ''}" data-id="${student.id}">
+        <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${student.isAbsent ? 'bg-amber-50/20' : (isMismatch ? 'bg-rose-50/20' : '')}" data-id="${student.id}">
           <td class="px-4 py-3 text-xs text-slate-400 font-mono">${index + 1}</td>
           <td class="px-4 py-3 text-sm font-bold text-slate-800">
             <input type="number" value="${student.studentNo}" onchange="app.updateCell('${student.id}', 'studentNo', this.value)" class="w-20 px-2 py-1 bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 rounded text-slate-800 font-bold focus:outline-none transition">
@@ -684,6 +856,16 @@ class EOkulSpeadApp {
     if (val < 1 || val > 30) return;
     this.settings.questionCount = val;
     this.currentSlots = [];
+
+    // Girmeyen öğrencilerin 0 puanlı dizi boyutunu yeni soru sayısına uyarla
+    this.students.forEach(s => {
+      if (s.isAbsent) {
+        s.scores = Array(val).fill(0);
+        s.statedTotal = 0;
+        s.calculatedTotal = 0;
+      }
+    });
+
     this.saveToStorage();
     this.renderSettings();
     this.renderTable();
@@ -872,6 +1054,23 @@ class EOkulSpeadApp {
             this.feedNumbers(nums);
           }
           input.value = '';
+        }
+      });
+    }
+
+    const absentForm = document.getElementById('absent-add-form');
+    if (absentForm) {
+      absentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('absent-input-text');
+        if (input && input.value.trim()) {
+          const nums = TurkishNumberParser.extractNumbers(input.value.trim());
+          if (nums && nums.length > 0) {
+            this.addAbsentStudents(nums, input.value.trim());
+            input.value = '';
+          } else {
+            this.showToast('Geçerli bir öğrenci numarası bulunamadı.', 'warning');
+          }
         }
       });
     }

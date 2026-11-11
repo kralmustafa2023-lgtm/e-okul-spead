@@ -239,5 +239,12 @@ window.db = {
     if (!firestore) throw new Error('Firestore hazır değil');
     await firestore.collection('profiles').doc(userId).delete();
     return true;
+  },
+
+  // 10. Şifre Sıfırlama E-postası Gönder
+  async resetPassword(email) {
+    if (!auth) throw new Error('Firebase hazır değil');
+    await auth.sendPasswordResetEmail(email);
+    return true;
   }
 };
