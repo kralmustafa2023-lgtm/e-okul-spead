@@ -46,12 +46,54 @@
         <a href="panel.html" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
           🚀 Uygulamaya Dön
         </a>
+        <button onclick="openPasswordModal()" class="px-3 py-1.5 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 text-xs font-semibold transition">
+          🔑 Şifremi Belirle
+        </button>
         <button onclick="window.db.signOut()" class="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold transition">
           Çıkış Yap
         </button>
       </div>
     </div>
   </header>
+
+  <!-- Şifre Belirleme Modalı -->
+  <div id="password-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div id="password-modal-card" class="relative w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 p-6 shadow-2xl scale-95 transition-all duration-200">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-violet-500/15 text-violet-400 border border-violet-500/30 flex items-center justify-center text-2xl">🔑</div>
+        <div>
+          <h3 class="text-base font-bold text-white">Şifre Belirle</h3>
+          <p class="text-xs text-slate-400">Firebase Kimlik Doğrulamaya Kaydet</p>
+        </div>
+        <button onclick="closePasswordModal()" class="ml-auto text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition">✕</button>
+      </div>
+
+      <div class="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 mb-4 text-xs text-violet-200/90 leading-relaxed">
+        <span class="font-bold">🔒 Güvenli:</span> Şifreniz Google Firebase Kimlik Doğrulama sunucusunda şifreli (hash) olarak saklanır. Hiçbir şekilde açık metin olarak görüntülenemez.
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Yeni Şifre</label>
+          <input type="password" id="new-password-input" placeholder="En az 6 karakter" class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Şifreyi Tekrar Girin</label>
+          <input type="password" id="new-password-confirm" placeholder="Şifreyi doğrulayın" class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition">
+        </div>
+        <div id="password-modal-error" class="hidden text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2"></div>
+        <div id="password-modal-success" class="hidden text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2"></div>
+      </div>
+
+      <div class="flex gap-3 mt-5 pt-4 border-t border-slate-800">
+        <button onclick="closePasswordModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">İptal</button>
+        <button onclick="saveNewPassword()" id="save-password-btn" class="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-violet-600/30">
+          <span id="save-password-spinner" class="hidden w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+          <span id="save-password-text">Şifreyi Kaydet</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
     
@@ -432,10 +474,96 @@
         });
       }
 
+      const pwModal = document.getElementById('password-modal');
+      if (pwModal) {
+        pwModal.addEventListener('click', (e) => {
+          if (e.target.id === 'password-modal') closePasswordModal();
+        });
+      }
+
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeDeleteModal();
+        if (e.key === 'Escape') {
+          closeDeleteModal();
+          closePasswordModal();
+        }
       });
     });
+
+    // ── Şifre Modalı ──────────────────────────────────────────────
+    function openPasswordModal() {
+      document.getElementById('new-password-input').value = '';
+      document.getElementById('new-password-confirm').value = '';
+      document.getElementById('password-modal-error').classList.add('hidden');
+      document.getElementById('password-modal-success').classList.add('hidden');
+      const modal = document.getElementById('password-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => document.getElementById('password-modal-card').classList.remove('scale-95'), 10);
+      document.getElementById('new-password-input').focus();
+    }
+
+    function closePasswordModal() {
+      const card = document.getElementById('password-modal-card');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        const modal = document.getElementById('password-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }, 180);
+    }
+
+    async function saveNewPassword() {
+      const pw1 = document.getElementById('new-password-input').value.trim();
+      const pw2 = document.getElementById('new-password-confirm').value.trim();
+      const errEl = document.getElementById('password-modal-error');
+      const sucEl = document.getElementById('password-modal-success');
+      const btn   = document.getElementById('save-password-btn');
+      const spinner = document.getElementById('save-password-spinner');
+      const btnText = document.getElementById('save-password-text');
+
+      errEl.classList.add('hidden');
+      sucEl.classList.add('hidden');
+
+      if (!pw1) { errEl.textContent = '⚠️ Şifre alanı boş bırakılamaz.'; errEl.classList.remove('hidden'); return; }
+      if (pw1.length < 6) { errEl.textContent = '⚠️ Şifre en az 6 karakter olmalıdır.'; errEl.classList.remove('hidden'); return; }
+      if (pw1 !== pw2) { errEl.textContent = '⚠️ Şifreler eşleşmiyor. Tekrar kontrol edin.'; errEl.classList.remove('hidden'); return; }
+
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnText.textContent = 'Kaydediliyor...';
+
+      try {
+        await window.db.setPasswordForCurrentUser(pw1);
+        sucEl.textContent = '✅ Şifreniz başarıyla Firebase\'e kaydedildi! Artık e-posta + şifre ile de giriş yapabilirsiniz.';
+        sucEl.classList.remove('hidden');
+        setTimeout(() => closePasswordModal(), 3000);
+      } catch (err) {
+        if (err.code === 'auth/requires-recent-login') {
+          errEl.textContent = '🔄 Güvenlik nedeniyle Google ile yeniden giriş gerekiyor...';
+          errEl.classList.remove('hidden');
+          try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await firebase.auth().currentUser.reauthenticateWithPopup(provider);
+            await window.db.setPasswordForCurrentUser(pw1);
+            sucEl.textContent = '✅ Şifreniz başarıyla Firebase\'e kaydedildi!';
+            sucEl.classList.remove('hidden');
+            errEl.classList.add('hidden');
+            setTimeout(() => closePasswordModal(), 3000);
+          } catch (reErr) {
+            errEl.textContent = '❌ Yeniden kimlik doğrulama başarısız: ' + (reErr.message || reErr.code);
+            errEl.classList.remove('hidden');
+          }
+        } else {
+          errEl.textContent = '❌ Hata: ' + (err.message || err.code || 'Bilinmeyen hata.');
+          errEl.classList.remove('hidden');
+        }
+      } finally {
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+        btnText.textContent = 'Şifreyi Kaydet';
+      }
+    }
   </script>
 </body>
 </html>
+
