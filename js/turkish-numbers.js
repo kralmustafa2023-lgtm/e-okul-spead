@@ -1,8 +1,8 @@
 /**
- * Turkish Number Parser - v8.0 Ultra Precision & Compound Number Engine
- * Tek ve bileşik Türkçe sayıları (örn: 142 = "yüz kırk iki", 350 = "üç yüz elli",
- * 1240 = "bin iki yüz kırk", 85 = "seksen beş", 0 = "sıfır/boş/yok") ve rakamları
- * sıfır hata ve sıfır kayma ile ayrıştıran kesin motor.
+ * Turkish Number Parser - v9.1 Ultra Precision & Large Number Engine
+ * Tek ve bileşik Türkçe sayıları (örn: 1016 = "bin on altı", "1.016", "10.16", "bin 16",
+ * 142 = "yüz kırk iki", 350 = "üç yüz elli", 1240 = "bin iki yüz kırk",
+ * 85 = "seksen beş", 0 = "sıfır/boş/yok") ve rakamları sıfır hata ve sıfır kayma ile ayrıştıran kesin motor.
  */
 
 const TurkishNumberParser = (() => {
@@ -20,18 +20,39 @@ const TurkishNumberParser = (() => {
     'seksen': 80, 'doksan': 90
   };
 
-  function normalize(text) {
-    if (!text) return '';
-    return text
-      .toLocaleLowerCase('tr-TR')
-      .replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()?’"“”—]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+  function normalize(rawText) {
+    if (!rawText) return '';
+    let text = rawText.toLocaleLowerCase('tr-TR');
+
+    // 1. Binlik ayıracı noktaları kaldır (Chrome Türkçe konuşmada sıkça nokta koyar):
+    // örn. "1.016" -> "1016", "10.16" -> "1016", "1.250" -> "1250"
+    text = text.replace(/(\d+)\.(\d+)/g, '$1$2');
+
+    // 2. Noktalama işaretlerini boşluğa çevir
+    text = text.replace(/[\,\/#!$%\^&\*;:{}=\-_`~()?’"“”—]/g, ' ');
+
+    // 3. "1 016" -> "1016" (1 veya 2 basamak + 3 basamak binlik boşluklu sayı)
+    text = text.replace(/\b(\d{1,2})\s+(\d{3})\b/g, '$1$2');
+
+    // 4. "1000 16" veya "2000 16" -> "1016", "2016"
+    text = text.replace(/\b([1-9]000)\s+(\d{1,3})\b/g, (match, thousands, rem) => {
+      return String(parseInt(thousands, 10) + parseInt(rem, 10));
+    });
+
+    // 5. Fazla boşlukları temizle
+    text = text.replace(/\s+/g, ' ').trim();
+
+    return text;
   }
 
   /**
    * Metindeki sayıları güvenli, eksiksiz ve bileşik yapıyı koruyarak ayıklar.
    * Örnekler:
+   *  "1016" -> [1016]
+   *  "1.016" -> [1016]
+   *  "10.16" -> [1016]
+   *  "bin on altı" -> [1016]
+   *  "bin 16" -> [1016]
    *  "142 seksen beş 20 20 20 25" -> [142, 85, 20, 20, 20, 25]
    *  "yüz kırk iki seksen beş yirmi yirmi yirmi yirmi beş" -> [142, 85, 20, 20, 20, 25]
    *  "üç yüz elli" -> [350]
@@ -48,8 +69,9 @@ const TurkishNumberParser = (() => {
     let i = 0;
     while (i < tokens.length) {
       const cur = tokens[i];
+      const next = tokens[i + 1];
 
-      // 1. Rakam kontrolü (Örn: "142", "85", "4")
+      // 1. Rakam kontrolü (Örn: "1016", "142", "85", "4")
       if (/^\d+$/.test(cur)) {
         results.push(parseInt(cur, 10));
         i++;
@@ -63,7 +85,26 @@ const TurkishNumberParser = (() => {
         continue;
       }
 
-      // 3. Türkçe bileşik sayı arama
+      // 3. "bin 16", "bin 5", "bin 142" gibi karışık kelime+rakam durumları
+      if (cur === 'bin' && next && /^\d+$/.test(next)) {
+        results.push(1000 + parseInt(next, 10));
+        i += 2;
+        continue;
+      }
+      // "iki bin 16", "üç bin 50" gibi
+      if (ONES[cur] !== undefined && next === 'bin' && tokens[i + 2] && /^\d+$/.test(tokens[i + 2])) {
+        results.push(ONES[cur] * 1000 + parseInt(tokens[i + 2], 10));
+        i += 3;
+        continue;
+      }
+      // "yüz 16", "yüz 5" gibi
+      if ((cur === 'yüz' || cur === 'yuz') && next && /^\d+$/.test(next)) {
+        results.push(100 + parseInt(next, 10));
+        i += 2;
+        continue;
+      }
+
+      // 4. Türkçe tam metinsel bileşik sayı arama
       // Format: [ (rakam)? bin ]? [ (rakam)? yüz ]? [ onlar ]? [ birler ]?
       let numberVal = 0;
       let hasParts = false;
@@ -123,10 +164,9 @@ const TurkishNumberParser = (() => {
         }
 
         // Birler kontrolü (yalnızca step < 4 iken)
-        // Ancak bir sonraki kelime 'yüz' veya 'bin' ise bu birler basamağı değil, yeni bir sayının çarpanıdır!
         if (step < 4 && ONES[tok] !== undefined) {
           if (nextTok === 'yüz' || nextTok === 'yuz' || nextTok === 'bin') {
-            break; // Bir sonraki sayının parçası
+            break; // Bir sonraki sayının çarpanı
           }
           numberVal += ONES[tok];
           hasParts = true;

@@ -480,6 +480,15 @@ class EOkulSpeadApp {
 
     const neededTotal = 2 + this.settings.questionCount; // 1 No + 1 Toplam + Sorular
 
+    // 4 basamaklı öğrenci numarası iki parça halinde geldiyse (örn: "on on altı" -> 10 ve 16)
+    // ve toplam sayı adedi tam olarak (öğrenci için gereken adet + 1) ise ilk iki sayıyı birleştir
+    if (this.currentSlots.length === 0 && numbers.length === neededTotal + 1) {
+      if (numbers[0] >= 10 && numbers[0] <= 99 && numbers[1] >= 0 && numbers[1] <= 99) {
+        const combinedNo = numbers[0] * 100 + numbers[1];
+        numbers = [combinedNo, ...numbers.slice(2)];
+      }
+    }
+
     for (let i = 0; i < numbers.length; i++) {
       const num = numbers[i];
       this.currentSlots.push(num);
