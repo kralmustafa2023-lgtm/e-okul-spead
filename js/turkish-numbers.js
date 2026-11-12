@@ -24,12 +24,12 @@ const TurkishNumberParser = (() => {
     if (!rawText) return '';
     let text = rawText.toLocaleLowerCase('tr-TR');
 
-    // 1. Binlik ayıracı noktaları kaldır (Chrome Türkçe konuşmada sıkça nokta koyar):
-    // örn. "1.016" -> "1016", "10.16" -> "1016", "1.250" -> "1250"
-    text = text.replace(/(\d+)\.(\d+)/g, '$1$2');
+    // 1. Binlik ayıracı noktaları kaldır (yalnızca 1-2 basamak + nokta + tam 3 basamak: örn "1.016" -> "1016", "2.500" -> "2500")
+    // "14.85" veya "14. 85" gibi notlar BİNLİK DEĞİLDİR, ayrık iki sayıdır!
+    text = text.replace(/\b(\d{1,2})\.(\d{3})\b/g, '$1$2');
 
-    // 2. Noktalama işaretlerini boşluğa çevir
-    text = text.replace(/[\,\/#!$%\^&\*;:{}=\-_`~()?’"“”—]/g, ' ');
+    // 2. Nokta da dahil tüm noktalama işaretlerini boşluğa çevir (Böylece "14. 85" veya "14.85" -> "14 85" olur)
+    text = text.replace(/[\.\,\/#!$%\^&\*;:{}=\-_`~()?’"“”—]/g, ' ');
 
     // 3. "1 016" -> "1016" (1 veya 2 basamak + 3 basamak binlik boşluklu sayı)
     text = text.replace(/\b(\d{1,2})\s+(\d{3})\b/g, '$1$2');

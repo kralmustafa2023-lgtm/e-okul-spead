@@ -444,14 +444,6 @@ class EOkulSpeadApp {
 
     const neededTotal = 2 + this.settings.questionCount; // 1 No + 1 Toplam + Sorular
 
-    // 4 basamaklı öğrenci numarası iki parça halinde geldiyse (örn: "on on altı" -> 10 ve 16)
-    // ve toplam sayı adedi tam olarak (öğrenci için gereken adet + 1) ise ilk iki sayıyı birleştir
-    if (this.currentSlots.length === 0 && numbers.length === neededTotal + 1) {
-      if (numbers[0] >= 10 && numbers[0] <= 99 && numbers[1] >= 0 && numbers[1] <= 99) {
-        const combinedNo = numbers[0] * 100 + numbers[1];
-        numbers = [combinedNo, ...numbers.slice(2)];
-      }
-    }
 
     for (let i = 0; i < numbers.length; i++) {
       const num = numbers[i];
@@ -733,7 +725,7 @@ class EOkulSpeadApp {
       // Tablodaki soru sayısına göre Whisper modelini yönlendiren dinamik prompt
       const qCount = this.settings.questionCount || 4;
       const sampleScores = Array(qCount).fill(20).join(' ');
-      const dynamicPrompt = `Öğrenci sınav not listesi: Okul No, Toplam Puan ve ${qCount} adet soru puanı. Örnek format: 1016 100 ${sampleScores}, 142 85 ${sampleScores}, 350 70 ${sampleScores}`;
+      const dynamicPrompt = `Öğrenci sınav not listesi, sayılar arasında boşluk: 14 85 ${sampleScores}, 8 75 ${sampleScores}, 1016 100 ${sampleScores}, 142 90 ${sampleScores}`;
       form.append('prompt', dynamicPrompt);
       form.append('response_format', 'json');
 
