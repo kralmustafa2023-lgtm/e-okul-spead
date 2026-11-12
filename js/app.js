@@ -129,7 +129,7 @@ class EOkulSpeadApp {
     if (volumeBar) volumeBar.style.width = '0%';
   }
 
-  // --- SES TANIMA (SPEECH RECOGNITION) --- v9.0 Instant Reactive Engine (Sıfır Gecikme, Sıfır Kayma)
+  // --- SES TANIMA (SPEECH RECOGNITION) --- v10.0 Rock-Solid Ultra-Sync & Instant Feedback
   setupSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -141,12 +141,8 @@ class EOkulSpeadApp {
     }
 
     this.speechSupported = true;
-
-    // ── Ultra-Hızlı ve Hatasız Senkronizasyon Durumu ──
+    this._silenceTimer = null;
     this._restartLock = false;
-    this._activeFedCount = 0;          // Bu konuşma oturumunda beslenmiş sayı sayısı
-    this._interimDebounceTimer = null; // Son sayıyı anında kesinleştiren 250ms zamanlayıcı
-    this._lastSpokenRawText = '';      // Son konuşma metni (geçmiş kaydı için)
 
     this.recognition = new SpeechRecognition();
     this.recognition.lang = 'tr-TR';
@@ -157,14 +153,15 @@ class EOkulSpeadApp {
     this.recognition.onstart = () => {
       this.isListening = true;
       this._restartLock = false;
-      this._activeFedCount = 0;
       this.updateMicUI(true);
       this.initAudioVisualizer();
     };
 
     this.recognition.onend = () => {
-      // Bekleyen son sayıyı varsa hemen kaydet
-      this._flushPendingNumber();
+      if (this._silenceTimer) {
+        clearTimeout(this._silenceTimer);
+        this._silenceTimer = null;
+      }
       if (this.isListening) {
         this._safeRestart();
       } else {
@@ -182,114 +179,63 @@ class EOkulSpeadApp {
     };
 
     this.recognition.onresult = (event) => {
-      // 1. Tüm oturum boyunca biriken tam metni oluştur
-      let fullTranscript = '';
-      let isAnyFinal = false;
+      let finalSegment = '';
+      let interimSegment = '';
 
-      for (let i = 0; i < event.results.length; i++) {
-        fullTranscript += ' ' + event.results[i][0].transcript;
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const text = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          isAnyFinal = true;
+          finalSegment += ' ' + text;
+        } else {
+          interimSegment += ' ' + text;
         }
       }
 
-      fullTranscript = fullTranscript.trim();
-      this._lastSpokenRawText = fullTranscript;
-
-      // Canlı önizleme kutusunu anında güncelle
+      // Canlı önizleme metnini güncelle
       const livePreview = document.getElementById('speech-live-preview');
       if (livePreview) {
-        livePreview.textContent = fullTranscript || 'Sizi dinliyorum...';
+        livePreview.textContent = (interimSegment || finalSegment || 'Sizi dinliyorum...').trim();
       }
 
-      // 2. Metindeki tüm sayıları Türkçe dil kurallarına göre çıkar
-      const allNumbers = TurkishNumberParser.extractNumbers(fullTranscript);
-
-      // Henüz beslenmemiş yeni sayılar
-      const uncommitted = allNumbers.slice(this._activeFedCount);
-      if (uncommitted.length === 0) return;
-
-      // 3. Çift/Çoklu sayılar: Son sayı hariç tüm önceki sayılar KESİN olarak bitmiştir!
-      // Çünkü sonraki bir sayı başlamış demektir. Bunları 0ms gecikmeyle HEMEN işle!
-      if (uncommitted.length > 1) {
-        const completedNumbers = uncommitted.slice(0, uncommitted.length - 1);
-        this.feedNumbers(completedNumbers);
-        this._activeFedCount += completedNumbers.length;
+      // 1. KESİNLEŞMİŞ (FINAL) SESLERİ ANINDA VE KESİN OLARAK İŞLE
+      if (finalSegment.trim()) {
+        if (this._silenceTimer) {
+          clearTimeout(this._silenceTimer);
+          this._silenceTimer = null;
+        }
+        const numbers = TurkishNumberParser.extractNumbers(finalSegment);
+        if (numbers && numbers.length > 0) {
+          this.feedNumbers(numbers);
+        }
       }
 
-      // 4. Kalan en son sayı için:
-      // Eğer Chrome bu parçayı isFinal yaptıysa -> beklemeden anında besle!
-      // Eğer henüz interim ise -> 250ms debounce başlat (kullanıcı konuşmayı bitirdiği an anında girsin)
-      const trailingNumber = allNumbers[this._activeFedCount];
-      if (trailingNumber !== undefined) {
-        if (this._interimDebounceTimer) {
-          clearTimeout(this._interimDebounceTimer);
-          this._interimDebounceTimer = null;
-        }
+      // 2. HENÜZ KESİNLEŞMEMİŞ (INTERIM) SESLER İÇİN 0ms ANINDA GÖRSEL GERİ BİLDİRİM
+      if (interimSegment.trim()) {
+        const interimNumbers = TurkishNumberParser.extractNumbers(interimSegment);
+        // Canlı kutucuklarda anında önizleme göster
+        this.renderLiveSlots(interimNumbers);
 
-        // Slot kutusunda anında canlı görsel önizleme göster
-        this._previewTrailingSlot(trailingNumber);
-
-        if (isAnyFinal) {
-          // Kesinleştiyse doğrudan besle
-          this.feedNumbers([trailingNumber]);
-          this._activeFedCount++;
-        } else {
-          // Henüz kesinleşmediyse 250ms sonra (Chrome'un 2 saniyelik gecikmesini beklemeden!) anında besle
-          this._interimDebounceTimer = setTimeout(() => {
-            this._interimDebounceTimer = null;
-            if (this._activeFedCount < allNumbers.length) {
-              const num = allNumbers[this._activeFedCount];
-              this.feedNumbers([num]);
-              this._activeFedCount++;
-            }
-          }, 250);
+        // Kullanıcı konuşmayı bitirdikten sonra Chrome'un 2 saniyelik gereksiz beklemesini
+        // atlatmak için 600ms sessizlik sonrası recognition.stop() çağırarak hızlı kesinleştir
+        if (this._silenceTimer) {
+          clearTimeout(this._silenceTimer);
         }
+        this._silenceTimer = setTimeout(() => {
+          this._silenceTimer = null;
+          if (this.isListening) {
+            try {
+              this.recognition.stop(); // Chrome bu parçayı anında finalize edip onresult(isFinal=true) tetikler
+            } catch (e) {}
+          }
+        }, 600);
       }
     };
-  }
-
-  // Bekleyen son sayıyı hemen kesinleştir
-  _flushPendingNumber() {
-    if (this._interimDebounceTimer) {
-      clearTimeout(this._interimDebounceTimer);
-      this._interimDebounceTimer = null;
-      if (this._lastSpokenRawText) {
-        const allNumbers = TurkishNumberParser.extractNumbers(this._lastSpokenRawText);
-        const uncommitted = allNumbers.slice(this._activeFedCount);
-        if (uncommitted.length > 0) {
-          this.feedNumbers(uncommitted);
-          this._activeFedCount += uncommitted.length;
-        }
-      }
-    }
-  }
-
-  // Henüz kesinleşme aşamasındaki sayıyı kutuda önizle
-  _previewTrailingSlot(number) {
-    const container = document.getElementById('live-slots-container');
-    if (!container) return;
-
-    const slotIndex = this.currentSlots.length;
-    const totalSlots = 2 + this.settings.questionCount;
-    if (slotIndex >= totalSlots) return;
-
-    const slotEl = container.children[slotIndex];
-    if (slotEl) {
-      const box = slotEl.querySelector('div:last-child');
-      if (box && !box.classList.contains('bg-indigo-600') && !box.classList.contains('bg-violet-600') && !box.classList.contains('bg-emerald-600')) {
-        box.textContent = number;
-        box.classList.add('text-indigo-300', 'border-indigo-400');
-        box.classList.remove('text-slate-500', 'border-slate-700');
-      }
-    }
   }
 
   // ── Güvenli Yeniden Başlatma ──
   _safeRestart() {
     if (this._restartLock) return;
     this._restartLock = true;
-    this._activeFedCount = 0; // Yeni oturumda transcript sıfırdan başlar
 
     const doStart = (attempt = 1) => {
       if (!this.isListening) {
@@ -298,9 +244,10 @@ class EOkulSpeadApp {
       }
       try {
         this.recognition.start();
+        this._restartLock = false;
       } catch (e) {
         if (attempt < 5) {
-          setTimeout(() => doStart(attempt + 1), Math.min(80 * attempt, 400));
+          setTimeout(() => doStart(attempt + 1), Math.min(50 * attempt, 250));
         } else {
           this.isListening = false;
           this._restartLock = false;
@@ -545,7 +492,7 @@ class EOkulSpeadApp {
   }
 
   // --- CANLI SLOTLARI ARAYÜZDE GÖRSELLEŞTİRME ---
-  renderLiveSlots() {
+  renderLiveSlots(interimNumbers = []) {
     const container = document.getElementById('live-slots-container');
     if (!container) return;
 
@@ -553,35 +500,65 @@ class EOkulSpeadApp {
     let html = '';
 
     // Okul No Kutusu
-    const noVal = this.currentSlots[0] !== undefined ? this.currentSlots[0] : '';
+    const committedNo = this.currentSlots[0];
+    const previewNo = committedNo !== undefined ? committedNo : (interimNumbers[0] !== undefined ? interimNumbers[0] : '');
+    const isNoPreview = committedNo === undefined && interimNumbers[0] !== undefined;
+
     html += `
       <div class="flex flex-col items-center">
         <span class="text-[10px] uppercase font-bold text-slate-400 mb-1">Okul No</span>
-        <div class="w-14 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${noVal !== '' ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-500/30 scale-105' : 'bg-slate-800/80 text-slate-500 border-slate-700'}">
-          ${noVal !== '' ? noVal : '?'}
+        <div class="w-16 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${
+          committedNo !== undefined
+            ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-500/30 scale-105'
+            : isNoPreview
+            ? 'bg-indigo-950/80 text-indigo-200 border-indigo-400 border-dashed animate-pulse scale-105'
+            : 'bg-slate-800/80 text-slate-500 border-slate-700'
+        }">
+          ${previewNo !== '' ? previewNo : '?'}
         </div>
       </div>
     `;
 
     // Toplam Puan Kutusu
-    const totVal = this.currentSlots[1] !== undefined ? this.currentSlots[1] : '';
+    const committedTot = this.currentSlots[1];
+    const interimTotIndex = 1 - this.currentSlots.length;
+    const previewTot = committedTot !== undefined ? committedTot : (interimTotIndex >= 0 && interimNumbers[interimTotIndex] !== undefined ? interimNumbers[interimTotIndex] : '');
+    const isTotPreview = committedTot === undefined && previewTot !== '';
+
     html += `
       <div class="flex flex-col items-center">
         <span class="text-[10px] uppercase font-bold text-slate-400 mb-1">Toplam</span>
-        <div class="w-14 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${totVal !== '' ? 'bg-violet-600 text-white border-violet-400 shadow-md shadow-violet-500/30 scale-105' : 'bg-slate-800/80 text-slate-500 border-slate-700'}">
-          ${totVal !== '' ? totVal : '?'}
+        <div class="w-14 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${
+          committedTot !== undefined
+            ? 'bg-violet-600 text-white border-violet-400 shadow-md shadow-violet-500/30 scale-105'
+            : isTotPreview
+            ? 'bg-violet-950/80 text-violet-200 border-violet-400 border-dashed animate-pulse scale-105'
+            : 'bg-slate-800/80 text-slate-500 border-slate-700'
+        }">
+          ${previewTot !== '' ? previewTot : '?'}
         </div>
       </div>
     `;
 
     // Soru Puanları Kutuları
     for (let q = 0; q < this.settings.questionCount; q++) {
-      const qVal = this.currentSlots[2 + q] !== undefined ? this.currentSlots[2 + q] : '';
+      const slotIndex = 2 + q;
+      const committedQ = this.currentSlots[slotIndex];
+      const interimQIndex = slotIndex - this.currentSlots.length;
+      const previewQ = committedQ !== undefined ? committedQ : (interimQIndex >= 0 && interimNumbers[interimQIndex] !== undefined ? interimNumbers[interimQIndex] : '');
+      const isQPreview = committedQ === undefined && previewQ !== '';
+
       html += `
         <div class="flex flex-col items-center">
           <span class="text-[10px] uppercase font-bold text-slate-400 mb-1">S${q + 1}</span>
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${qVal !== '' ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/30 scale-105' : 'bg-slate-800/80 text-slate-500 border-slate-700'}">
-            ${qVal !== '' ? qVal : '-'}
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${
+            committedQ !== undefined
+              ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/30 scale-105'
+              : isQPreview
+              ? 'bg-emerald-950/80 text-emerald-200 border-emerald-400 border-dashed animate-pulse scale-105'
+              : 'bg-slate-800/80 text-slate-500 border-slate-700'
+          }">
+            ${previewQ !== '' ? previewQ : '-'}
           </div>
         </div>
       `;
@@ -602,22 +579,23 @@ class EOkulSpeadApp {
 
     if (this.isListening) {
       this.isListening = false;
-      // Bekleyen son sayıyı kaydet
-      this._flushPendingNumber();
+      if (this._silenceTimer) {
+        clearTimeout(this._silenceTimer);
+        this._silenceTimer = null;
+      }
       try {
         this.recognition.stop();
       } catch (e) {}
       this.updateMicUI(false);
       this.stopAudioVisualizer();
+      this.renderLiveSlots();
       this.showToast('Mikrofon duraklatıldı.', 'info');
     } else {
       try {
-        // Yeni oturum
         this._restartLock = false;
-        this._activeFedCount = 0;
-        if (this._interimDebounceTimer) {
-          clearTimeout(this._interimDebounceTimer);
-          this._interimDebounceTimer = null;
+        if (this._silenceTimer) {
+          clearTimeout(this._silenceTimer);
+          this._silenceTimer = null;
         }
         this.recognition.start();
         this.isListening = true;
