@@ -246,5 +246,13 @@ window.db = {
     if (!auth) throw new Error('Firebase hazır değil');
     await auth.sendPasswordResetEmail(email);
     return true;
+  },
+
+  // 11. Aktif Kullanıcıya Şifre Belirle / Değiştir
+  async setPasswordForCurrentUser(newPassword) {
+    if (!auth || !auth.currentUser) throw new Error('Oturum açık değil. Lütfen önce giriş yapın.');
+    if (!newPassword || newPassword.length < 6) throw new Error('Şifre en az 6 karakter olmalıdır.');
+    await auth.currentUser.updatePassword(newPassword);
+    return true;
   }
 };
