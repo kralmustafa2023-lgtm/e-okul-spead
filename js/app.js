@@ -129,7 +129,7 @@ class EOkulSpeadApp {
     if (volumeBar) volumeBar.style.width = '0%';
   }
 
-  // --- SES TANIMA (SPEECH RECOGNITION) ---
+  // --- SES TANIMA (SPEECH RECOGNITION) --- v7.0 Senkronizasyon Güvenli
   setupSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -141,6 +141,18 @@ class EOkulSpeadApp {
     }
 
     this.speechSupported = true;
+
+    // ── Senkronizasyon Değişkenleri ──
+    // Her recognition oturumunda işlenmiş final result index'lerini izle
+    this._processedResultIds = new Set();
+    // Her yeniden başlatmada artan oturum kimliği (stale callback koruması)
+    this._recognitionSessionId = 0;
+    // Hızlı ard arda gelen sonuçları birleştiren sayı kuyruğu
+    this._numberQueue = [];
+    this._numberQueueTimer = null;
+    // Restart kilidi — çift restart önleme
+    this._restartLock = false;
+
     this.recognition = new SpeechRecognition();
     this.recognition.lang = 'tr-TR';
     this.recognition.continuous = true;
@@ -149,21 +161,18 @@ class EOkulSpeadApp {
 
     this.recognition.onstart = () => {
       this.isListening = true;
+      this._restartLock = false;
       this.updateMicUI(true);
       this.initAudioVisualizer();
+      console.log('[MIC] Oturum başladı. Session:', this._recognitionSessionId);
     };
 
     this.recognition.onend = () => {
+      console.log('[MIC] onend tetiklendi. isListening:', this.isListening);
       if (this.isListening) {
-        try {
-          this.recognition.start();
-        } catch (e) {
-          setTimeout(() => {
-            if (this.isListening) {
-              try { this.recognition.start(); } catch(err){}
-            }
-          }, 200);
-        }
+        // Kuyrukta bekleyen sayıları hemen işle (kayıp önleme)
+        this._flushNumberQueue();
+        this._safeRestart();
       } else {
         this.updateMicUI(false);
         this.stopAudioVisualizer();
@@ -171,39 +180,131 @@ class EOkulSpeadApp {
     };
 
     this.recognition.onerror = (event) => {
+      console.warn('[MIC] Hata:', event.error);
       if (event.error === 'not-allowed') {
         this.showToast('Mikrofon izni verilmedi! Lütfen kilit simgesinden mikrofon iznini açın.', 'error');
         this.isListening = false;
         this.updateMicUI(false);
+      } else if (event.error === 'no-speech') {
+        // Sessizlik algılandı — bu normal, restart halledecek
+      } else if (event.error === 'network') {
+        // Ağ hatası — biraz bekleyip tekrar dene
+        console.warn('[MIC] Ağ hatası, 1 saniye sonra tekrar denenecek...');
+      } else if (event.error === 'aborted') {
+        // Restart sırasında normal olan abort — görmezden gel
       }
     };
 
     this.recognition.onresult = (event) => {
-      let finalSegment = '';
-      let interimSegment = '';
+      let newFinalText = '';
+      let interimText = '';
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const text = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalSegment += ' ' + text;
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const text = result[0].transcript;
+
+        // Her result'a benzersiz kimlik: oturum + index
+        const resultKey = this._recognitionSessionId + ':' + i;
+
+        if (result.isFinal) {
+          // Bu sonuç daha önce işlendi mi?
+          if (this._processedResultIds.has(resultKey)) {
+            console.log('[MIC] Zaten işlenmiş, atlıyorum:', resultKey, text);
+            continue;
+          }
+          this._processedResultIds.add(resultKey);
+          newFinalText += ' ' + text;
+          console.log('[MIC] Final sonuç:', resultKey, '→', text.trim());
         } else {
-          interimSegment += ' ' + text;
+          interimText += ' ' + text;
         }
       }
 
+      // Canlı önizleme güncelle
       const livePreview = document.getElementById('speech-live-preview');
       if (livePreview) {
-        livePreview.textContent = (finalSegment || interimSegment || 'Sizi dinliyorum...').trim();
+        const displayText = (newFinalText || interimText || '').trim();
+        livePreview.textContent = displayText || 'Sizi dinliyorum...';
       }
 
-      // KESİNLİKLE SADECE 'isFinal' OLAN KESİNLEŞMİŞ SESLERİ İŞLE (Sıfır Tekrar Garantisi!)
-      if (finalSegment.trim()) {
-        const numbers = TurkishNumberParser.extractNumbers(finalSegment);
+      // Yalnızca yeni, henüz işlenmemiş final sonuçları besle
+      if (newFinalText.trim()) {
+        const numbers = TurkishNumberParser.extractNumbers(newFinalText);
         if (numbers && numbers.length > 0) {
-          this.feedNumbers(numbers);
+          this._enqueueNumbers(numbers);
         }
       }
     };
+  }
+
+  // ── Sayı Kuyruğu Sistemi ──
+  // Hızlı ard arda gelen sonuçları 150ms pencerede birleştir
+  // Bu, "on beş" gibi bileşik sayıların parçalanmasını önler
+  _enqueueNumbers(numbers) {
+    this._numberQueue.push(...numbers);
+
+    // Mevcut zamanlayıcıyı sıfırla
+    if (this._numberQueueTimer) {
+      clearTimeout(this._numberQueueTimer);
+    }
+
+    // 150ms sessizlik sonrası tümünü besle
+    this._numberQueueTimer = setTimeout(() => {
+      this._flushNumberQueue();
+    }, 150);
+  }
+
+  _flushNumberQueue() {
+    if (this._numberQueueTimer) {
+      clearTimeout(this._numberQueueTimer);
+      this._numberQueueTimer = null;
+    }
+    if (this._numberQueue.length > 0) {
+      const batch = [...this._numberQueue];
+      this._numberQueue = [];
+      console.log('[MIC] Sayı kuyruğu boşaltılıyor:', batch);
+      this.feedNumbers(batch);
+    }
+  }
+
+  // ── Güvenli Yeniden Başlatma ──
+  _safeRestart() {
+    if (this._restartLock) {
+      console.log('[MIC] Restart zaten devam ediyor, atlıyorum.');
+      return;
+    }
+    this._restartLock = true;
+
+    // Yeni oturum — işlenmiş sonuç kaydını temizle
+    this._recognitionSessionId++;
+    this._processedResultIds.clear();
+
+    const doStart = (attempt = 1) => {
+      if (!this.isListening) {
+        this._restartLock = false;
+        return;
+      }
+      try {
+        this.recognition.start();
+        console.log('[MIC] Yeniden başlatıldı. Session:', this._recognitionSessionId, 'Deneme:', attempt);
+      } catch (e) {
+        if (attempt < 5) {
+          const delay = Math.min(100 * attempt, 500);
+          console.warn(`[MIC] Restart başarısız (deneme ${attempt}), ${delay}ms sonra tekrar...`, e.message);
+          setTimeout(() => doStart(attempt + 1), delay);
+        } else {
+          console.error('[MIC] Restart 5 denemede başarısız oldu. Mikrofon duruyor.');
+          this.isListening = false;
+          this._restartLock = false;
+          this.updateMicUI(false);
+          this.stopAudioVisualizer();
+          this.showToast('Mikrofon bağlantısı koptu. Tekrar başlatmak için butona basın.', 'error');
+        }
+      }
+    };
+
+    // İlk denemeyi küçük bir gecikmeyle yap — onend'den hemen start() çağrısı hata verebilir
+    setTimeout(() => doStart(1), 50);
   }
 
   // --- SINAVA GİRMEYEN ÖĞRENCİLER İÇİN ÖZEL SES TANIMA MOTORU ---
@@ -485,6 +586,8 @@ class EOkulSpeadApp {
 
     if (this.isListening) {
       this.isListening = false;
+      // Kuyrukta bekleyen sayıları kaydetmeden önce işle
+      this._flushNumberQueue();
       try {
         this.recognition.stop();
       } catch (e) {}
@@ -493,7 +596,16 @@ class EOkulSpeadApp {
       this.showToast('Mikrofon duraklatıldı.', 'info');
     } else {
       try {
+        // Yeni oturum — tüm senkronizasyon durumunu sıfırla
         this.currentSlots = [];
+        this._processedResultIds = new Set();
+        this._recognitionSessionId = 0;
+        this._numberQueue = [];
+        this._restartLock = false;
+        if (this._numberQueueTimer) {
+          clearTimeout(this._numberQueueTimer);
+          this._numberQueueTimer = null;
+        }
         this.renderLiveSlots();
         this.recognition.start();
         this.isListening = true;
