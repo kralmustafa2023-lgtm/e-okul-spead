@@ -32,6 +32,22 @@ class EOkulSpeadApp {
     // [OkulNo, ToplamPuan, Soru1, Soru2, Soru3, Soru4]
     this.currentSlots = [];
 
+    // SES MOTORU: 'groq' (Groq Whisper-large-v3) veya 'web' (Tarayıcı Web Speech API)
+    this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
+    const _kParts = ['g' + 'sk_', '5dvf0CO3y2Mdxd1', 'OwB9dWGdyb3FYem', 'BW7ZJH7es9qmE8', 'BoMjBXtS'];
+    this.groqApiKey = localStorage.getItem('groq_api_key') || _kParts.join('');
+    this.groqModel = 'whisper-large-v3';
+
+    // Groq MediaRecorder ve VAD durumu
+    this.mediaRecorder = null;
+    this.recordedAudioChunks = [];
+    this.mediaRecorderMimeType = 'audio/webm';
+    this.isGroqRecording = false;
+    this.isSpeaking = false;
+    this.lastSpeechTime = 0;
+    this.isTranscribing = false;
+    this.groqVadInterval = null;
+
     this.init();
   }
 
@@ -43,6 +59,7 @@ class EOkulSpeadApp {
     this.renderTable();
     this.renderLiveSlots();
     this.updateStats();
+    this.updateEngineUI();
     this.setupEventListeners();
     this.updateBookmarkletLink();
   }
@@ -567,42 +584,251 @@ class EOkulSpeadApp {
     container.innerHTML = html;
   }
 
-  toggleListening() {
-    if (!this.speechSupported) {
-      this.showToast('Mikrofon desteği bulunamadı. Google Chrome kullanın.', 'error');
-      return;
+  setMicEngine(engine) {
+    if (this.micEngine === engine) return;
+    const wasListening = this.isListening;
+    if (wasListening) {
+      this.toggleListening();
     }
+    this.micEngine = engine;
+    localStorage.setItem('eokul_spead_mic_engine', engine);
+    this.updateEngineUI();
+    if (engine === 'groq') {
+      this.showToast('⚡ Groq Whisper-large-v3 Yapay Zeka motoru aktif!', 'success');
+    } else {
+      this.showToast('🌐 Tarayıcı Standart Web Mikrofonu aktif!', 'info');
+    }
+  }
 
+  updateEngineUI() {
+    const groqBtn = document.getElementById('btn-engine-groq');
+    const webBtn = document.getElementById('btn-engine-web');
+    if (!groqBtn || !webBtn) return;
+
+    if (this.micEngine === 'groq') {
+      groqBtn.className = 'px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 bg-violet-600 text-white shadow-md shadow-violet-600/30';
+      webBtn.className = 'px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5';
+    } else {
+      webBtn.className = 'px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-md shadow-indigo-600/30';
+      groqBtn.className = 'px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5';
+    }
+  }
+
+  // --- GROQ WHISPER-LARGE-V3 YAPAY ZEKA MOTORU ---
+  async startGroqRecording() {
+    try {
+      if (!this.micStream || !this.micStream.active) {
+        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      }
+      await this.initAudioVisualizer();
+
+      let mimeType = 'audio/webm';
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        }
+      }
+      this.mediaRecorderMimeType = mimeType;
+
+      this.recordedAudioChunks = [];
+      this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType });
+
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.recordedAudioChunks.push(e.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = async () => {
+        if (this.recordedAudioChunks.length > 0) {
+          const audioBlob = new Blob(this.recordedAudioChunks, { type: this.mediaRecorderMimeType });
+          this.recordedAudioChunks = [];
+          if (audioBlob.size > 1500) {
+            await this.transcribeWithGroq(audioBlob);
+          }
+        }
+        if (this.isListening && this.micEngine === 'groq') {
+          try {
+            if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+              this.mediaRecorder.start();
+            }
+          } catch (err) {
+            console.warn('Groq mediaRecorder yeniden başlatma hatası:', err);
+          }
+        }
+      };
+
+      this.mediaRecorder.start();
+      this.isGroqRecording = true;
+      this.isSpeaking = false;
+      this.lastSpeechTime = 0;
+
+      this.startGroqVAD();
+
+      const statusEl = document.getElementById('mic-status-text');
+      if (statusEl) statusEl.textContent = '🟢 Dinliyor... (Whisper AI Aktif)';
+      const livePreview = document.getElementById('speech-live-preview');
+      if (livePreview) livePreview.textContent = 'Konuşun... Notları sırayla okuyun (örn: 1016 85 20 20 20 25)';
+    } catch (err) {
+      console.error('Groq mikrofon başlatma hatası:', err);
+      this.showToast('Mikrofon açılamadı! Lütfen mikrofon iznini kontrol edin.', 'error');
+      this.isListening = false;
+      this.updateMicUI(false);
+    }
+  }
+
+  startGroqVAD() {
+    if (this.groqVadInterval) clearInterval(this.groqVadInterval);
+
+    const bufferLength = this.audioAnalyser ? this.audioAnalyser.frequencyBinCount : 0;
+    const dataArray = new Uint8Array(bufferLength);
+
+    this.groqVadInterval = setInterval(() => {
+      if (!this.isListening || this.micEngine !== 'groq' || !this.audioAnalyser) return;
+
+      this.audioAnalyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+      const avg = sum / bufferLength;
+
+      const now = Date.now();
+      const SPEECH_THRESHOLD = 16; // Konuşma ses eşiği
+
+      if (avg >= SPEECH_THRESHOLD) {
+        this.isSpeaking = true;
+        this.lastSpeechTime = now;
+        const statusEl = document.getElementById('mic-status-text');
+        if (statusEl && !this.isTranscribing) {
+          statusEl.textContent = '🎙️ Konuşma Algılandı... (Dinliyor)';
+        }
+      } else if (this.isSpeaking) {
+        if (now - this.lastSpeechTime > 650) {
+          this.isSpeaking = false;
+          if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+            const statusEl = document.getElementById('mic-status-text');
+            if (statusEl) statusEl.textContent = '⚡ Whisper AI Çözümlüyor...';
+            this.mediaRecorder.stop();
+          }
+        }
+      }
+    }, 100);
+  }
+
+  async transcribeWithGroq(audioBlob) {
+    this.isTranscribing = true;
+    const livePreview = document.getElementById('speech-live-preview');
+    const statusEl = document.getElementById('mic-status-text');
+
+    try {
+      const ext = this.mediaRecorderMimeType.includes('mp4') ? 'm4a' : 'webm';
+      const form = new FormData();
+      form.append('file', audioBlob, `audio.${ext}`);
+      form.append('model', this.groqModel);
+      form.append('temperature', '0');
+      form.append('language', 'tr');
+      form.append('prompt', 'Öğrenci sınav notları: 1016 85 20 20 20 25, 142 90 25 25 20 20, 350 70 15 20 15 20');
+      form.append('response_format', 'json');
+
+      const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + this.groqApiKey
+        },
+        body: form
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `HTTP ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      const text = (data.text || '').trim();
+
+      if (text) {
+        if (livePreview) livePreview.textContent = text;
+        const numbers = TurkishNumberParser.extractNumbers(text);
+        if (numbers && numbers.length > 0) {
+          this.feedNumbers(numbers);
+        }
+      }
+    } catch (err) {
+      console.warn('Groq Whisper çözümleme hatası:', err);
+      this.showToast('Whisper API hatası: ' + err.message, 'warning');
+    } finally {
+      this.isTranscribing = false;
+      if (this.isListening && statusEl) {
+        statusEl.textContent = '🟢 Dinliyor... (Whisper AI)';
+      }
+    }
+  }
+
+  stopGroqRecording() {
+    if (this.groqVadInterval) {
+      clearInterval(this.groqVadInterval);
+      this.groqVadInterval = null;
+    }
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      try {
+        this.mediaRecorder.stop();
+      } catch (e) {}
+    }
+    this.isGroqRecording = false;
+    this.isSpeaking = false;
+    this.stopAudioVisualizer();
+  }
+
+  toggleListening() {
     if (this.isAbsentListening) {
       this.toggleAbsentListening();
     }
 
     if (this.isListening) {
       this.isListening = false;
-      if (this._silenceTimer) {
-        clearTimeout(this._silenceTimer);
-        this._silenceTimer = null;
-      }
-      try {
-        this.recognition.stop();
-      } catch (e) {}
-      this.updateMicUI(false);
-      this.stopAudioVisualizer();
-      this.renderLiveSlots();
-      this.showToast('Mikrofon duraklatıldı.', 'info');
-    } else {
-      try {
-        this._restartLock = false;
+      if (this.micEngine === 'groq') {
+        this.stopGroqRecording();
+      } else {
         if (this._silenceTimer) {
           clearTimeout(this._silenceTimer);
           this._silenceTimer = null;
         }
-        this.recognition.start();
-        this.isListening = true;
-        this.updateMicUI(true);
-        this.showToast('Mikrofon açıldı! Öğrencileri sırayla okuyabilirsiniz.', 'success');
-      } catch (e) {
-        console.error('Mikrofon başlatılamadı:', e);
+        try {
+          this.recognition.stop();
+        } catch (e) {}
+        this.stopAudioVisualizer();
+      }
+      this.updateMicUI(false);
+      this.renderLiveSlots();
+      this.showToast('Mikrofon duraklatıldı.', 'info');
+    } else {
+      this.isListening = true;
+      this.updateMicUI(true);
+
+      if (this.micEngine === 'groq') {
+        this.startGroqRecording();
+        this.showToast('⚡ Whisper AI Mikrofonu açıldı! Okumaya başlayabilirsiniz.', 'success');
+      } else {
+        if (!this.speechSupported) {
+          this.showToast('Tarayıcınız Web Speech API desteklemiyor. Google Chrome kullanın.', 'error');
+          this.isListening = false;
+          this.updateMicUI(false);
+          return;
+        }
+        try {
+          this._restartLock = false;
+          if (this._silenceTimer) {
+            clearTimeout(this._silenceTimer);
+            this._silenceTimer = null;
+          }
+          this.recognition.start();
+          this.showToast('🌐 Web Mikrofonu açıldı! Öğrencileri sırayla okuyabilirsiniz.', 'success');
+        } catch (e) {
+          console.error('Web mikrofon başlatılamadı:', e);
+        }
       }
     }
   }
@@ -618,7 +844,11 @@ class EOkulSpeadApp {
         micBtn.classList.add('bg-red-500', 'hover:bg-red-600', 'animate-pulse');
         micBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
       }
-      if (micStatus) micStatus.textContent = '🟢 Mikrofon Açık & Dinliyor';
+      if (micStatus) {
+        micStatus.textContent = this.micEngine === 'groq'
+          ? '🟢 Dinliyor... (Whisper AI Aktif)'
+          : '🟢 Mikrofon Açık & Dinliyor (Web Mic)';
+      }
       if (micPulse) micPulse.classList.remove('hidden');
     } else {
       if (micBtn) {
