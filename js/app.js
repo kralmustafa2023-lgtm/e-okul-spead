@@ -730,7 +730,11 @@ class EOkulSpeadApp {
       form.append('model', this.groqModel);
       form.append('temperature', '0');
       form.append('language', 'tr');
-      form.append('prompt', 'Öğrenci sınav notları: 1016 85 20 20 20 25, 142 90 25 25 20 20, 350 70 15 20 15 20');
+      // Tablodaki soru sayısına göre Whisper modelini yönlendiren dinamik prompt
+      const qCount = this.settings.questionCount || 4;
+      const sampleScores = Array(qCount).fill(20).join(' ');
+      const dynamicPrompt = `Öğrenci sınav not listesi: Okul No, Toplam Puan ve ${qCount} adet soru puanı. Örnek format: 1016 100 ${sampleScores}, 142 85 ${sampleScores}, 350 70 ${sampleScores}`;
+      form.append('prompt', dynamicPrompt);
       form.append('response_format', 'json');
 
       const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
