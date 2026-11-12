@@ -45,6 +45,8 @@ class EOkulSpeadApp {
     this.isGroqRecording = false;
     this.isSpeaking = false;
     this.lastSpeechTime = 0;
+    this.speechStartTime = 0;
+    this.speechThreshold = 26; // Gürültü ve arka plan konuşmalarını kesen yüksek hassasiyet eşiği
     this.isTranscribing = false;
     this.groqVadInterval = null;
 
@@ -444,6 +446,18 @@ class EOkulSpeadApp {
 
     const neededTotal = 2 + this.settings.questionCount; // 1 No + 1 Toplam + Sorular
 
+    // --- KARMAŞA & GÜRÜLTÜ SESİ FİLTRESİ ---
+    // Slotlar henüz boşken yeni bir öğrenci beklenir. Bir öğretmen yeni öğrenciye başlarken
+    // asla sadece tek bir küçük sayı söyleyip susmaz (örn: arkadan biri 'üç' dedi veya öksürükten 'bir' çıktı).
+    // Yeni öğrenci için en az No + Toplam (en az 2 sayı) VEYA 3-4 basamaklı belirgin bir numara (>=100) gerekir!
+    if (this.currentSlots.length === 0 && numbers.length === 1 && numbers[0] < 100) {
+      console.warn('⚠️ Karmaşa/arka plan sesi filtrelendi:', numbers[0]);
+      const livePreview = document.getElementById('speech-live-preview');
+      if (livePreview) {
+        livePreview.textContent = `⚠️ Arka plan sesi filtrelendi (${numbers[0]}). Lütfen "Öğrenci No ve Toplam Notu" birlikte okuyun.`;
+      }
+      return;
+    }
 
     for (let i = 0; i < numbers.length; i++) {
       const num = numbers[i];
@@ -610,7 +624,14 @@ class EOkulSpeadApp {
   async startGroqRecording() {
     try {
       if (!this.micStream || !this.micStream.active) {
-        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        this.micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false
+          },
+          video: false
+        });
       }
       await this.initAudioVisualizer();
 
@@ -658,13 +679,14 @@ class EOkulSpeadApp {
       this.isGroqRecording = true;
       this.isSpeaking = false;
       this.lastSpeechTime = 0;
+      this.speechStartTime = 0;
 
       this.startGroqVAD();
 
       const statusEl = document.getElementById('mic-status-text');
-      if (statusEl) statusEl.textContent = '🟢 Dinliyor... (Whisper AI Aktif)';
+      if (statusEl) statusEl.textContent = '🟢 Dinliyor... (Gürültü Kalkanı Aktif)';
       const livePreview = document.getElementById('speech-live-preview');
-      if (livePreview) livePreview.textContent = 'Konuşun... Notları sırayla okuyun (örn: 1016 85 20 20 20 25)';
+      if (livePreview) livePreview.textContent = 'Konuşun... Notları sırayla okuyun (örn: 14 85 20 20 20 25)';
     } catch (err) {
       console.error('Groq mikrofon başlatma hatası:', err);
       this.showToast('Mikrofon açılamadı! Lütfen mikrofon iznini kontrol edin.', 'error');
@@ -688,10 +710,13 @@ class EOkulSpeadApp {
       const avg = sum / bufferLength;
 
       const now = Date.now();
-      const SPEECH_THRESHOLD = 16; // Konuşma ses eşiği
+      const SPEECH_THRESHOLD = this.speechThreshold || 26; // Arka plan fısıltı ve tıkırtılarını kesen ses eşiği
 
       if (avg >= SPEECH_THRESHOLD) {
-        this.isSpeaking = true;
+        if (!this.isSpeaking) {
+          this.isSpeaking = true;
+          this.speechStartTime = now;
+        }
         this.lastSpeechTime = now;
         const statusEl = document.getElementById('mic-status-text');
         if (statusEl && !this.isTranscribing) {
@@ -700,6 +725,14 @@ class EOkulSpeadApp {
       } else if (this.isSpeaking) {
         if (now - this.lastSpeechTime > 650) {
           this.isSpeaking = false;
+          const speechDuration = now - this.speechStartTime;
+          // Eğer ses 400ms'den kısaysa (öksürük, takırtı, anlık gürültü):
+          if (speechDuration < 400) {
+            console.log('Anlık kısa gürültü yok sayıldı (süre:', speechDuration, 'ms)');
+            this.recordedAudioChunks = [];
+            return;
+          }
+
           if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             const statusEl = document.getElementById('mic-status-text');
             if (statusEl) statusEl.textContent = '⚡ Whisper AI Çözümlüyor...';
@@ -708,6 +741,21 @@ class EOkulSpeadApp {
         }
       }
     }, 100);
+  }
+
+  isGarbageOrHallucination(text) {
+    if (!text) return true;
+    const lower = text.toLowerCase().trim();
+    const badPatterns = [
+      'altyazı', 'altyazi', 'teşekkür', 'tesekkur', 'izlediğiniz', 'izlediginiz',
+      'abone', 'beğen', 'begen', 'videoyu', 'yorum', 'hoşça kal', 'hosca kal',
+      'görüşmek', 'gorusmek', 'bay bay', 'bye', 'www.', '.com', '.org',
+      'kanalımıza', 'seslendiren', 'çeviri', 'ceviri', 'tr dublaj', 'senkron'
+    ];
+    for (const p of badPatterns) {
+      if (lower.includes(p)) return true;
+    }
+    return false;
   }
 
   async transcribeWithGroq(audioBlob) {
@@ -746,6 +794,11 @@ class EOkulSpeadApp {
       const text = (data.text || '').trim();
 
       if (text) {
+        if (this.isGarbageOrHallucination(text)) {
+          console.warn('Gürültü/halüsinasyon metni filtrelendi:', text);
+          if (livePreview) livePreview.textContent = '⚠️ Arka plan karmaşa sesi filtrelendi.';
+          return;
+        }
         if (livePreview) livePreview.textContent = text;
         const numbers = TurkishNumberParser.extractNumbers(text);
         if (numbers && numbers.length > 0) {
