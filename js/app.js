@@ -34,8 +34,7 @@ class EOkulSpeadApp {
 
     // SES MOTORU: 'groq' (Groq Whisper-large-v3) veya 'web' (Tarayıcı Web Speech API)
     this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
-    const _kParts = ['g' + 'sk_', '5dvf0CO3y2Mdxd1', 'OwB9dWGdyb3FYem', 'BW7ZJH7es9qmE8', 'BoMjBXtS'];
-    this.groqApiKey = localStorage.getItem('groq_api_key') || _kParts.join('');
+    this.groqApiKey = localStorage.getItem('groq_api_key') || '';
     this.groqModel = 'whisper-large-v3';
 
     // Groq MediaRecorder ve VAD durumu
@@ -49,6 +48,12 @@ class EOkulSpeadApp {
     this.speechThreshold = 26; // Gürültü ve arka plan konuşmalarını kesen yüksek hassasiyet eşiği
     this.isTranscribing = false;
     this.groqVadInterval = null;
+    this.minimumGroqSpeechDurationMs = 450;
+    this.groqSpeechHangoverMs = 650;
+    this.discardCurrentGroqSegment = false;
+    this.groqSlotStartedAt = 0;
+    this.groqSlotTimeoutMs = 15000;
+    this.processingGroqTranscript = false;
 
     this.init();
   }
@@ -461,6 +466,9 @@ class EOkulSpeadApp {
 
     for (let i = 0; i < numbers.length; i++) {
       const num = numbers[i];
+      if (this.processingGroqTranscript && this.currentSlots.length === 0) {
+        this.groqSlotStartedAt = Date.now();
+      }
       this.currentSlots.push(num);
       this.renderLiveSlots();
 
@@ -481,6 +489,19 @@ class EOkulSpeadApp {
     const calculatedTotal = scores.reduce((sum, v) => sum + v, 0);
     const totalsMatch = statedTotal === calculatedTotal;
 
+    if (this.processingGroqTranscript && !totalsMatch) {
+      const shouldSave = window.confirm(
+        `Whisper toplamı ${statedTotal}, soru puanları toplamı ${calculatedTotal} olarak okudu. Bu şüpheli kaydı yine de ekleyeyim mi?`
+      );
+      if (!shouldSave) {
+        this.currentSlots = [];
+        this.groqSlotStartedAt = 0;
+        this.renderLiveSlots();
+        this.showToast('Şüpheli Whisper kaydı eklenmedi.', 'warning');
+        return;
+      }
+    }
+
     const studentEntry = {
       studentNo,
       statedTotal,
@@ -495,6 +516,7 @@ class EOkulSpeadApp {
 
     // Slotları temizle ve bir sonraki öğrenciye geç!
     this.currentSlots = [];
+    this.groqSlotStartedAt = 0;
     this.renderLiveSlots();
   }
 
@@ -502,6 +524,7 @@ class EOkulSpeadApp {
   undoLastNumber() {
     if (this.currentSlots.length > 0) {
       this.currentSlots.pop();
+      if (this.currentSlots.length === 0) this.groqSlotStartedAt = 0;
       this.renderLiveSlots();
       this.showToast('Son sayı geri alındı.', 'info');
     }
@@ -510,6 +533,7 @@ class EOkulSpeadApp {
   // Aktif öğrenci kutucuklarını sıfırla
   clearCurrentSlots() {
     this.currentSlots = [];
+    this.groqSlotStartedAt = 0;
     this.renderLiveSlots();
     this.showToast('Aktif öğrenci kutucukları temizlendi.', 'info');
   }
@@ -606,6 +630,25 @@ class EOkulSpeadApp {
     }
   }
 
+  configureGroqApiKey() {
+    const enteredKey = window.prompt(
+      'Whisper AI için Groq API anahtarınızı girin. Anahtar yalnızca bu tarayıcıda saklanır:',
+      this.groqApiKey || ''
+    );
+    if (enteredKey === null) return false;
+
+    const apiKey = enteredKey.trim();
+    if (!apiKey.startsWith('gsk_') || apiKey.length < 20) {
+      this.showToast('Geçerli bir Groq API anahtarı girin.', 'warning');
+      return false;
+    }
+
+    this.groqApiKey = apiKey;
+    localStorage.setItem('groq_api_key', apiKey);
+    this.showToast('Groq API anahtarı bu tarayıcıya kaydedildi.', 'success');
+    return true;
+  }
+
   updateEngineUI() {
     const groqBtn = document.getElementById('btn-engine-groq');
     const webBtn = document.getElementById('btn-engine-web');
@@ -623,6 +666,12 @@ class EOkulSpeadApp {
   // --- GROQ WHISPER-LARGE-V3 YAPAY ZEKA MOTORU ---
   async startGroqRecording() {
     try {
+      if (!this.groqApiKey && !this.configureGroqApiKey()) {
+        this.isListening = false;
+        this.updateMicUI(false);
+        return;
+      }
+
       if (!this.micStream || !this.micStream.active) {
         this.micStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -657,11 +706,17 @@ class EOkulSpeadApp {
       };
 
       this.mediaRecorder.onstop = async () => {
+        const shouldTranscribe = !this.discardCurrentGroqSegment;
+        this.discardCurrentGroqSegment = false;
+
         if (this.recordedAudioChunks.length > 0) {
           const audioBlob = new Blob(this.recordedAudioChunks, { type: this.mediaRecorderMimeType });
           this.recordedAudioChunks = [];
-          if (audioBlob.size > 1500) {
+          if (shouldTranscribe && audioBlob.size > 1500) {
             await this.transcribeWithGroq(audioBlob);
+          } else if (!shouldTranscribe) {
+            const livePreview = document.getElementById('speech-live-preview');
+            if (livePreview) livePreview.textContent = 'Kısa arka plan sesi filtrelendi.';
           }
         }
         if (this.isListening && this.micEngine === 'groq') {
@@ -680,6 +735,7 @@ class EOkulSpeadApp {
       this.isSpeaking = false;
       this.lastSpeechTime = 0;
       this.speechStartTime = 0;
+      this.discardCurrentGroqSegment = false;
 
       this.startGroqVAD();
 
@@ -702,7 +758,14 @@ class EOkulSpeadApp {
     const dataArray = new Uint8Array(bufferLength);
 
     this.groqVadInterval = setInterval(() => {
-      if (!this.isListening || this.micEngine !== 'groq' || !this.audioAnalyser) return;
+      if (
+        !this.isListening ||
+        this.micEngine !== 'groq' ||
+        !this.audioAnalyser ||
+        this.isTranscribing ||
+        !this.mediaRecorder ||
+        this.mediaRecorder.state !== 'recording'
+      ) return;
 
       this.audioAnalyser.getByteFrequencyData(dataArray);
       let sum = 0;
@@ -723,19 +786,19 @@ class EOkulSpeadApp {
           statusEl.textContent = '🎙️ Konuşma Algılandı... (Dinliyor)';
         }
       } else if (this.isSpeaking) {
-        if (now - this.lastSpeechTime > 650) {
+        if (now - this.lastSpeechTime > this.groqSpeechHangoverMs) {
           this.isSpeaking = false;
-          const speechDuration = now - this.speechStartTime;
-          // Eğer ses 400ms'den kısaysa (öksürük, takırtı, anlık gürültü):
-          if (speechDuration < 400) {
-            console.log('Anlık kısa gürültü yok sayıldı (süre:', speechDuration, 'ms)');
-            this.recordedAudioChunks = [];
-            return;
-          }
+          // Gerçek ses süresini ölç; sessizlik bekleme süresini konuşma süresine katma.
+          const speechDuration = this.lastSpeechTime - this.speechStartTime;
+          this.discardCurrentGroqSegment = speechDuration < this.minimumGroqSpeechDurationMs;
 
           if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             const statusEl = document.getElementById('mic-status-text');
-            if (statusEl) statusEl.textContent = '⚡ Whisper AI Çözümlüyor...';
+            if (statusEl) {
+              statusEl.textContent = this.discardCurrentGroqSegment
+                ? 'Kısa arka plan sesi filtreleniyor...'
+                : '⚡ Whisper AI Çözümlüyor...';
+            }
             this.mediaRecorder.stop();
           }
         }
@@ -758,6 +821,29 @@ class EOkulSpeadApp {
     return false;
   }
 
+  validateGroqNumbers(numbers) {
+    if (!Array.isArray(numbers) || numbers.length === 0) return false;
+
+    const rowSize = 2 + this.settings.questionCount;
+    let slotIndex = this.currentSlots.length % rowSize;
+
+    for (const number of numbers) {
+      if (!Number.isSafeInteger(number)) return false;
+
+      if (slotIndex === 0) {
+        if (number < 1 || number > 99999) return false;
+      } else if (slotIndex === 1) {
+        if (number < 0 || number > this.settings.questionCount * 100) return false;
+      } else if (number < 0 || number > 100) {
+        return false;
+      }
+
+      slotIndex = (slotIndex + 1) % rowSize;
+    }
+
+    return true;
+  }
+
   async transcribeWithGroq(audioBlob) {
     this.isTranscribing = true;
     const livePreview = document.getElementById('speech-live-preview');
@@ -770,11 +856,8 @@ class EOkulSpeadApp {
       form.append('model', this.groqModel);
       form.append('temperature', '0');
       form.append('language', 'tr');
-      // Tablodaki soru sayısına göre Whisper modelini yönlendiren dinamik prompt
-      const qCount = this.settings.questionCount || 4;
-      const sampleScores = Array(qCount).fill(20).join(' ');
-      const dynamicPrompt = `Öğrenci sınav not listesi, sayılar arasında boşluk: 14 85 ${sampleScores}, 8 75 ${sampleScores}, 1016 100 ${sampleScores}, 142 90 ${sampleScores}`;
-      form.append('prompt', dynamicPrompt);
+      // Somut puan örnekleri, belirsiz seslerde modelin sayı uydurmasını teşvik edebilir.
+      form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
       form.append('response_format', 'json');
 
       const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
@@ -797,15 +880,51 @@ class EOkulSpeadApp {
         if (this.isGarbageOrHallucination(text)) {
           console.warn('Gürültü/halüsinasyon metni filtrelendi:', text);
           if (livePreview) livePreview.textContent = '⚠️ Arka plan karmaşa sesi filtrelendi.';
+          if (this.currentSlots.length > 0) {
+            this.currentSlots = [];
+            this.groqSlotStartedAt = 0;
+            this.renderLiveSlots();
+          }
           return;
         }
         if (livePreview) livePreview.textContent = text;
         const numbers = TurkishNumberParser.extractNumbers(text);
         if (numbers && numbers.length > 0) {
+          if (
+            this.currentSlots.length > 0 &&
+            this.groqSlotStartedAt &&
+            Date.now() - this.groqSlotStartedAt > this.groqSlotTimeoutMs
+          ) {
+            this.currentSlots = [];
+            this.groqSlotStartedAt = 0;
+            this.renderLiveSlots();
+            this.showToast('Eksik Whisper kaydı zaman aşımına uğradı ve temizlendi.', 'warning');
+          }
+
+          if (this.currentSlots.length === 0 && numbers.length === 1) {
+            this.showToast('Tek başına gelen Whisper sayısı öğrenci kaydı olarak kabul edilmedi.', 'warning');
+            return;
+          }
+
+          if (!this.validateGroqNumbers(numbers)) {
+            this.showToast('Whisper geçersiz veya aralık dışı sayılar üretti; kayıt eklenmedi.', 'warning');
+            if (this.currentSlots.length > 0) {
+              this.currentSlots = [];
+              this.groqSlotStartedAt = 0;
+              this.renderLiveSlots();
+            }
+            return;
+          }
+
+          if (this.currentSlots.length === 0) this.groqSlotStartedAt = Date.now();
+          this.processingGroqTranscript = true;
           this.feedNumbers(numbers);
+          this.processingGroqTranscript = false;
+          if (this.currentSlots.length === 0) this.groqSlotStartedAt = 0;
         }
       }
     } catch (err) {
+      this.processingGroqTranscript = false;
       console.warn('Groq Whisper çözümleme hatası:', err);
       this.showToast('Whisper API hatası: ' + err.message, 'warning');
     } finally {
@@ -1237,6 +1356,7 @@ class EOkulSpeadApp {
     if (val < 1 || val > 30) return;
     this.settings.questionCount = val;
     this.currentSlots = [];
+    this.groqSlotStartedAt = 0;
 
     // Girmeyen öğrencilerin 0 puanlı dizi boyutunu yeni soru sayısına uyarla
     this.students.forEach(s => {

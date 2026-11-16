@@ -39,3 +39,5 @@
 2. Mikrofon butonuna tıklayıp izin verin.
 3. Sınavınızın soru sayısını seçin (örn: 6 soru).
 4. Sınav kağıtlarını okumaya başlayın!
+
+Whisper AI motorunu ilk kez kullanırken Groq API anahtarınızı girmeniz gerekir. Anahtar bu tarayıcıda saklanır ve GitHub deposuna eklenmez. Anahtarınız yoksa **Web Mic** motorunu seçebilirsiniz.
