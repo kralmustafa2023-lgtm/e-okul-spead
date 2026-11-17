@@ -52,7 +52,7 @@ class EOkulSpeadApp {
     this.discardCurrentGroqSegment = false;
     this.groqSlotStartedAt = 0;
     this.groqSlotTimeoutMs = 15000;
-    this.processingGroqTranscript = false;
+    this.groqTranscriptionQueue = Promise.resolve();
     this.groqSessionId = 0;
     this.activeTranscriptionController = null;
 
@@ -474,29 +474,14 @@ class EOkulSpeadApp {
   }
 
   // --- CANLI SLOT BESLEYİCİ (SLOT FEEDER) ---
-  feedNumbers(numbers) {
+  feedNumbers(numbers, capturedAt = Date.now()) {
     if (!numbers || numbers.length === 0) return;
 
     const neededTotal = 2 + this.settings.questionCount; // 1 No + 1 Toplam + Sorular
 
-    // --- KARMAŞA & GÜRÜLTÜ SESİ FİLTRESİ ---
-    // Slotlar henüz boşken yeni bir öğrenci beklenir. Bir öğretmen yeni öğrenciye başlarken
-    // asla sadece tek bir küçük sayı söyleyip susmaz (örn: arkadan biri 'üç' dedi veya öksürükten 'bir' çıktı).
-    // Yeni öğrenci için en az No + Toplam (en az 2 sayı) VEYA 3-4 basamaklı belirgin bir numara (>=100) gerekir!
-    if (this.currentSlots.length === 0 && numbers.length === 1 && numbers[0] < 100) {
-      console.warn('⚠️ Karmaşa/arka plan sesi filtrelendi:', numbers[0]);
-      const livePreview = document.getElementById('speech-live-preview');
-      if (livePreview) {
-        livePreview.textContent = `⚠️ Arka plan sesi filtrelendi (${numbers[0]}). Lütfen "Öğrenci No ve Toplam Notu" birlikte okuyun.`;
-      }
-      return;
-    }
-
     for (let i = 0; i < numbers.length; i++) {
       const num = numbers[i];
-      if (this.processingGroqTranscript && this.currentSlots.length === 0) {
-        this.groqSlotStartedAt = Date.now();
-      }
+      if (this.currentSlots.length === 0) this.groqSlotStartedAt = capturedAt;
       this.currentSlots.push(num);
       this.renderLiveSlots();
 
@@ -517,22 +502,6 @@ class EOkulSpeadApp {
     const calculatedTotal = scores.reduce((sum, v) => sum + v, 0);
     const totalsMatch = statedTotal === calculatedTotal;
 
-    if (this.processingGroqTranscript) {
-      const sumStatus = totalsMatch
-        ? 'Soru puanlarının toplamı eşleşiyor.'
-        : `DİKKAT: Söylenen toplam ${statedTotal}, soru puanlarının toplamı ${calculatedTotal}.`;
-      const shouldSave = window.confirm(
-        `Whisper şu kaydı algıladı:\n\nÖğrenci no: ${studentNo}\nSöylenen toplam: ${statedTotal}\nSoru puanları: ${scores.join(', ')}\nHesaplanan toplam: ${calculatedTotal}\n\n${sumStatus}\n\nBu kaydı öğrenci listesine ekleyeyim mi?`
-      );
-      if (!shouldSave) {
-        this.currentSlots = [];
-        this.groqSlotStartedAt = 0;
-        this.renderLiveSlots();
-        this.showToast('Whisper kaydı onaylanmadı; öğrenci listesine eklenmedi.', 'warning');
-        return;
-      }
-    }
-
     const studentEntry = {
       studentNo,
       statedTotal,
@@ -549,6 +518,9 @@ class EOkulSpeadApp {
     this.currentSlots = [];
     this.groqSlotStartedAt = 0;
     this.renderLiveSlots();
+    if (!totalsMatch) {
+      this.showToast(`Öğrenci ${studentNo} eklendi; söylenen toplam ${statedTotal}, hesaplanan toplam ${calculatedTotal}.`, 'warning');
+    }
   }
 
   // Son söylenen tek bir sayıyı geri al
@@ -744,16 +716,17 @@ class EOkulSpeadApp {
         }
       };
 
-      recorder.onstop = async () => {
+      recorder.onstop = () => {
         const shouldTranscribe = !this.discardCurrentGroqSegment && this.isCurrentGroqSession(sessionId);
         this.discardCurrentGroqSegment = false;
 
         if (this.recordedAudioChunks === audioChunks) this.recordedAudioChunks = [];
         if (audioChunks.length > 0) {
           const audioBlob = new Blob(audioChunks, { type: this.mediaRecorderMimeType });
+          const capturedAt = Date.now();
           audioChunks.length = 0;
           if (shouldTranscribe && audioBlob.size > 1500) {
-            await this.transcribeWithGroq(audioBlob, sessionId);
+            this.enqueueGroqTranscription(audioBlob, sessionId, capturedAt);
           } else if (!shouldTranscribe) {
             const livePreview = document.getElementById('speech-live-preview');
             if (livePreview && this.isCurrentGroqSession(sessionId)) {
@@ -810,7 +783,6 @@ class EOkulSpeadApp {
         !this.isListening ||
         this.micEngine !== 'groq' ||
         !this.audioAnalyser ||
-        this.isTranscribing ||
         !this.mediaRecorder ||
         this.mediaRecorder.state !== 'recording'
       ) return;
@@ -830,8 +802,10 @@ class EOkulSpeadApp {
         }
         this.lastSpeechTime = now;
         const statusEl = document.getElementById('mic-status-text');
-        if (statusEl && !this.isTranscribing) {
-          statusEl.textContent = '🎙️ Konuşma Algılandı... (Dinliyor)';
+        if (statusEl) {
+          statusEl.textContent = this.isTranscribing
+            ? '🎙️ Konuşma algılandı... sıraya alınıyor'
+            : '🎙️ Konuşma Algılandı... (Dinliyor)';
         }
       } else if (this.isSpeaking) {
         if (now - this.lastSpeechTime > this.groqSpeechHangoverMs) {
@@ -852,6 +826,18 @@ class EOkulSpeadApp {
         }
       }
     }, 100);
+  }
+
+  enqueueGroqTranscription(audioBlob, sessionId, capturedAt) {
+    this.groqTranscriptionQueue = this.groqTranscriptionQueue
+      .catch(() => {})
+      .then(() => {
+        if (!this.isCurrentGroqSession(sessionId)) return;
+        return this.transcribeWithGroq(audioBlob, sessionId, capturedAt);
+      })
+      .catch((error) => {
+        console.error('Groq ses kuyruğu hatası:', error);
+      });
   }
 
   isGarbageOrHallucination(text) {
@@ -892,7 +878,7 @@ class EOkulSpeadApp {
     return true;
   }
 
-  async transcribeWithGroq(audioBlob, sessionId = this.groqSessionId) {
+  async transcribeWithGroq(audioBlob, sessionId = this.groqSessionId, capturedAt = Date.now()) {
     if (!this.isCurrentGroqSession(sessionId)) return;
     this.isTranscribing = true;
     const livePreview = document.getElementById('speech-live-preview');
@@ -952,17 +938,12 @@ class EOkulSpeadApp {
           if (
             this.currentSlots.length > 0 &&
             this.groqSlotStartedAt &&
-            Date.now() - this.groqSlotStartedAt > this.groqSlotTimeoutMs
+            capturedAt - this.groqSlotStartedAt > this.groqSlotTimeoutMs
           ) {
             this.currentSlots = [];
             this.groqSlotStartedAt = 0;
             this.renderLiveSlots();
             this.showToast('Eksik Whisper kaydı zaman aşımına uğradı ve temizlendi.', 'warning');
-          }
-
-          if (this.currentSlots.length === 0 && numbers.length === 1) {
-            this.showToast('Tek başına gelen Whisper sayısı öğrenci kaydı olarak kabul edilmedi.', 'warning');
-            return;
           }
 
           if (!this.validateGroqNumbers(numbers)) {
@@ -975,16 +956,12 @@ class EOkulSpeadApp {
             return;
           }
 
-          if (this.currentSlots.length === 0) this.groqSlotStartedAt = Date.now();
-          this.processingGroqTranscript = true;
-          this.feedNumbers(numbers);
-          this.processingGroqTranscript = false;
+          this.feedNumbers(numbers, capturedAt);
           if (this.currentSlots.length === 0) this.groqSlotStartedAt = 0;
         }
       }
     } catch (err) {
       if (!this.isCurrentGroqSession(sessionId) || err.name === 'AbortError') return;
-      this.processingGroqTranscript = false;
       console.warn('Groq Whisper çözümleme hatası:', err);
       this.showToast('Whisper API hatası: ' + err.message, 'warning');
     } finally {
@@ -992,7 +969,7 @@ class EOkulSpeadApp {
         this.activeTranscriptionController = null;
         this.isTranscribing = false;
       }
-      if (this.isCurrentGroqSession(sessionId) && statusEl) {
+      if (this.isCurrentGroqSession(sessionId) && statusEl && !this.isSpeaking) {
         statusEl.textContent = '🟢 Dinliyor... (Whisper AI)';
       }
     }
@@ -1002,7 +979,6 @@ class EOkulSpeadApp {
     // İzin penceresi veya Whisper isteği henüz beklerken kapatma olursa eski oturumu geçersiz kıl.
     this.groqSessionId++;
     this.discardCurrentGroqSegment = true;
-    this.processingGroqTranscript = false;
     this.isTranscribing = false;
     if (this.activeTranscriptionController) {
       this.activeTranscriptionController.abort();
