@@ -44,12 +44,12 @@ class EOkulSpeadApp {
     this.isSpeaking = false;
     this.lastSpeechTime = 0;
     this.speechStartTime = 0;
-    this.speechThreshold = 32; // Hafif ortam seslerinin yeni konuşma parçası başlatmasını azaltır
     this.isTranscribing = false;
     this.groqVadInterval = null;
-    this.minimumGroqSpeechDurationMs = 450;
-    this.groqSpeechHangoverMs = 650;
+    this.minimumGroqSpeechDurationMs = 180;
+    this.groqSpeechHangoverMs = 500;
     this.groqSpeechStartCandidateAt = 0;
+    this.groqNoiseFloor = 2;
     this.discardCurrentGroqSegment = false;
     this.groqSlotStartedAt = 0;
     this.groqSlotTimeoutMs = 15000;
@@ -113,7 +113,7 @@ class EOkulSpeadApp {
 
       const source = this.audioContext.createMediaStreamSource(this.micStream);
       this.audioAnalyser = this.audioContext.createAnalyser();
-      this.audioAnalyser.fftSize = 64;
+      this.audioAnalyser.fftSize = 512;
       source.connect(this.audioAnalyser);
 
       const bufferLength = this.audioAnalyser.frequencyBinCount;
@@ -801,7 +801,7 @@ class EOkulSpeadApp {
   startGroqVAD() {
     if (this.groqVadInterval) clearInterval(this.groqVadInterval);
 
-    const bufferLength = this.audioAnalyser ? this.audioAnalyser.frequencyBinCount : 0;
+    const bufferLength = this.audioAnalyser ? this.audioAnalyser.fftSize : 0;
     const dataArray = new Uint8Array(bufferLength);
 
     this.groqVadInterval = setInterval(() => {
@@ -813,20 +813,23 @@ class EOkulSpeadApp {
         this.mediaRecorder.state !== 'recording'
       ) return;
 
-      this.audioAnalyser.getByteFrequencyData(dataArray);
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-      const avg = sum / bufferLength;
+      this.audioAnalyser.getByteTimeDomainData(dataArray);
+      let sumSquares = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const sample = dataArray[i] - 128;
+        sumSquares += sample * sample;
+      }
+      const rms = Math.sqrt(sumSquares / bufferLength);
 
       const now = Date.now();
-      const speechStartThreshold = this.speechThreshold || 32;
-      const speechContinueThreshold = speechStartThreshold * 0.68;
+      const speechStartThreshold = Math.min(22, Math.max(6, this.groqNoiseFloor * 2.2 + 3));
+      const speechContinueThreshold = Math.max(3, speechStartThreshold * 0.55);
 
       if (!this.isSpeaking) {
-        if (avg >= speechStartThreshold) {
+        if (rms >= speechStartThreshold) {
           if (!this.groqSpeechStartCandidateAt) this.groqSpeechStartCandidateAt = now;
-          // Tek karelik tıkırtılar yeni bir Whisper isteği başlatmasın.
-          if (now - this.groqSpeechStartCandidateAt >= 200) {
+          // Kısa ama gerçek sayı parçalarını yakala; tek ölçümlük tıkırtıları ele.
+          if (now - this.groqSpeechStartCandidateAt >= 100) {
             this.isSpeaking = true;
             this.speechStartTime = this.groqSpeechStartCandidateAt;
             this.lastSpeechTime = now;
@@ -840,8 +843,9 @@ class EOkulSpeadApp {
           }
         } else {
           this.groqSpeechStartCandidateAt = 0;
+          this.groqNoiseFloor = Math.min(12, this.groqNoiseFloor * 0.92 + rms * 0.08);
         }
-      } else if (avg >= speechContinueThreshold) {
+      } else if (rms >= speechContinueThreshold) {
         this.lastSpeechTime = now;
       } else if (this.isSpeaking) {
         if (now - this.lastSpeechTime > this.groqSpeechHangoverMs) {
