@@ -54,6 +54,8 @@ class EOkulSpeadApp {
     this.groqSlotStartedAt = 0;
     this.groqSlotTimeoutMs = 15000;
     this.processingGroqTranscript = false;
+    this.groqSessionId = 0;
+    this.activeTranscriptionController = null;
 
     this.init();
   }
@@ -489,15 +491,18 @@ class EOkulSpeadApp {
     const calculatedTotal = scores.reduce((sum, v) => sum + v, 0);
     const totalsMatch = statedTotal === calculatedTotal;
 
-    if (this.processingGroqTranscript && !totalsMatch) {
+    if (this.processingGroqTranscript) {
+      const sumStatus = totalsMatch
+        ? 'Soru puanlarının toplamı eşleşiyor.'
+        : `DİKKAT: Söylenen toplam ${statedTotal}, soru puanlarının toplamı ${calculatedTotal}.`;
       const shouldSave = window.confirm(
-        `Whisper toplamı ${statedTotal}, soru puanları toplamı ${calculatedTotal} olarak okudu. Bu şüpheli kaydı yine de ekleyeyim mi?`
+        `Whisper şu kaydı algıladı:\n\nÖğrenci no: ${studentNo}\nSöylenen toplam: ${statedTotal}\nSoru puanları: ${scores.join(', ')}\nHesaplanan toplam: ${calculatedTotal}\n\n${sumStatus}\n\nBu kaydı öğrenci listesine ekleyeyim mi?`
       );
       if (!shouldSave) {
         this.currentSlots = [];
         this.groqSlotStartedAt = 0;
         this.renderLiveSlots();
-        this.showToast('Şüpheli Whisper kaydı eklenmedi.', 'warning');
+        this.showToast('Whisper kaydı onaylanmadı; öğrenci listesine eklenmedi.', 'warning');
         return;
       }
     }
@@ -664,16 +669,33 @@ class EOkulSpeadApp {
   }
 
   // --- GROQ WHISPER-LARGE-V3 YAPAY ZEKA MOTORU ---
+  isCurrentGroqSession(sessionId) {
+    return sessionId === this.groqSessionId && this.isListening && this.micEngine === 'groq';
+  }
+
+  releaseGroqAudioStream(stream = this.micStream) {
+    if (!stream) return;
+    stream.getTracks().forEach(track => {
+      try { track.stop(); } catch (e) {}
+    });
+    if (this.micStream === stream) this.micStream = null;
+    this.stopAudioVisualizer();
+  }
+
   async startGroqRecording() {
+    const sessionId = ++this.groqSessionId;
+    let sessionStream = null;
     try {
       if (!this.groqApiKey && !this.configureGroqApiKey()) {
-        this.isListening = false;
-        this.updateMicUI(false);
+        if (this.isCurrentGroqSession(sessionId)) {
+          this.isListening = false;
+          this.updateMicUI(false);
+        }
         return;
       }
 
       if (!this.micStream || !this.micStream.active) {
-        this.micStream = await navigator.mediaDevices.getUserMedia({
+        sessionStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -681,8 +703,19 @@ class EOkulSpeadApp {
           },
           video: false
         });
+        if (!this.isCurrentGroqSession(sessionId)) {
+          this.releaseGroqAudioStream(sessionStream);
+          return;
+        }
+        this.micStream = sessionStream;
+      } else {
+        sessionStream = this.micStream;
       }
       await this.initAudioVisualizer();
+      if (!this.isCurrentGroqSession(sessionId)) {
+        this.releaseGroqAudioStream(sessionStream);
+        return;
+      }
 
       let mimeType = 'audio/webm';
       if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
@@ -696,33 +729,38 @@ class EOkulSpeadApp {
       }
       this.mediaRecorderMimeType = mimeType;
 
-      this.recordedAudioChunks = [];
-      this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType });
+      const audioChunks = [];
+      const recorder = new MediaRecorder(sessionStream, { mimeType });
+      this.recordedAudioChunks = audioChunks;
+      this.mediaRecorder = recorder;
 
-      this.mediaRecorder.ondataavailable = (e) => {
+      recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
-          this.recordedAudioChunks.push(e.data);
+          audioChunks.push(e.data);
         }
       };
 
-      this.mediaRecorder.onstop = async () => {
-        const shouldTranscribe = !this.discardCurrentGroqSegment;
+      recorder.onstop = async () => {
+        const shouldTranscribe = !this.discardCurrentGroqSegment && this.isCurrentGroqSession(sessionId);
         this.discardCurrentGroqSegment = false;
 
-        if (this.recordedAudioChunks.length > 0) {
-          const audioBlob = new Blob(this.recordedAudioChunks, { type: this.mediaRecorderMimeType });
-          this.recordedAudioChunks = [];
+        if (this.recordedAudioChunks === audioChunks) this.recordedAudioChunks = [];
+        if (audioChunks.length > 0) {
+          const audioBlob = new Blob(audioChunks, { type: this.mediaRecorderMimeType });
+          audioChunks.length = 0;
           if (shouldTranscribe && audioBlob.size > 1500) {
-            await this.transcribeWithGroq(audioBlob);
+            await this.transcribeWithGroq(audioBlob, sessionId);
           } else if (!shouldTranscribe) {
             const livePreview = document.getElementById('speech-live-preview');
-            if (livePreview) livePreview.textContent = 'Kısa arka plan sesi filtrelendi.';
+            if (livePreview && this.isCurrentGroqSession(sessionId)) {
+              livePreview.textContent = 'Mikrofon kapatıldı veya kısa ses parçası filtrelendi.';
+            }
           }
         }
-        if (this.isListening && this.micEngine === 'groq') {
+        if (this.isCurrentGroqSession(sessionId) && this.mediaRecorder === recorder) {
           try {
-            if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
-              this.mediaRecorder.start();
+            if (recorder.state === 'inactive') {
+              recorder.start();
             }
           } catch (err) {
             console.warn('Groq mediaRecorder yeniden başlatma hatası:', err);
@@ -730,7 +768,11 @@ class EOkulSpeadApp {
         }
       };
 
-      this.mediaRecorder.start();
+      if (!this.isCurrentGroqSession(sessionId)) {
+        this.releaseGroqAudioStream(sessionStream);
+        return;
+      }
+      recorder.start();
       this.isGroqRecording = true;
       this.isSpeaking = false;
       this.lastSpeechTime = 0;
@@ -744,10 +786,12 @@ class EOkulSpeadApp {
       const livePreview = document.getElementById('speech-live-preview');
       if (livePreview) livePreview.textContent = 'Konuşun... Notları sırayla okuyun (örn: 14 85 20 20 20 25)';
     } catch (err) {
+      if (!this.isCurrentGroqSession(sessionId)) return;
       console.error('Groq mikrofon başlatma hatası:', err);
       this.showToast('Mikrofon açılamadı! Lütfen mikrofon iznini kontrol edin.', 'error');
       this.isListening = false;
       this.updateMicUI(false);
+      this.releaseGroqAudioStream(sessionStream);
     }
   }
 
@@ -844,10 +888,13 @@ class EOkulSpeadApp {
     return true;
   }
 
-  async transcribeWithGroq(audioBlob) {
+  async transcribeWithGroq(audioBlob, sessionId = this.groqSessionId) {
+    if (!this.isCurrentGroqSession(sessionId)) return;
     this.isTranscribing = true;
     const livePreview = document.getElementById('speech-live-preview');
     const statusEl = document.getElementById('mic-status-text');
+    const controller = new AbortController();
+    this.activeTranscriptionController = controller;
 
     try {
       const ext = this.mediaRecorderMimeType.includes('mp4') ? 'm4a' : 'webm';
@@ -865,8 +912,10 @@ class EOkulSpeadApp {
         headers: {
           'Authorization': 'Bearer ' + this.groqApiKey
         },
-        body: form
+        body: form,
+        signal: controller.signal
       });
+      if (!this.isCurrentGroqSession(sessionId)) return;
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
@@ -874,6 +923,7 @@ class EOkulSpeadApp {
       }
 
       const data = await resp.json();
+      if (!this.isCurrentGroqSession(sessionId)) return;
       const text = (data.text || '').trim();
 
       if (text) {
@@ -924,18 +974,31 @@ class EOkulSpeadApp {
         }
       }
     } catch (err) {
+      if (!this.isCurrentGroqSession(sessionId) || err.name === 'AbortError') return;
       this.processingGroqTranscript = false;
       console.warn('Groq Whisper çözümleme hatası:', err);
       this.showToast('Whisper API hatası: ' + err.message, 'warning');
     } finally {
-      this.isTranscribing = false;
-      if (this.isListening && statusEl) {
+      if (this.activeTranscriptionController === controller) {
+        this.activeTranscriptionController = null;
+        this.isTranscribing = false;
+      }
+      if (this.isCurrentGroqSession(sessionId) && statusEl) {
         statusEl.textContent = '🟢 Dinliyor... (Whisper AI)';
       }
     }
   }
 
   stopGroqRecording() {
+    // İzin penceresi veya Whisper isteği henüz beklerken kapatma olursa eski oturumu geçersiz kıl.
+    this.groqSessionId++;
+    this.discardCurrentGroqSegment = true;
+    this.processingGroqTranscript = false;
+    this.isTranscribing = false;
+    if (this.activeTranscriptionController) {
+      this.activeTranscriptionController.abort();
+      this.activeTranscriptionController = null;
+    }
     if (this.groqVadInterval) {
       clearInterval(this.groqVadInterval);
       this.groqVadInterval = null;
@@ -947,7 +1010,12 @@ class EOkulSpeadApp {
     }
     this.isGroqRecording = false;
     this.isSpeaking = false;
-    this.stopAudioVisualizer();
+    this.recordedAudioChunks = [];
+    // Yarım kalan veya gürültüden gelen sayılar sonraki dinleme oturumuna taşınmasın.
+    this.currentSlots = [];
+    this.groqSlotStartedAt = 0;
+    this.renderLiveSlots();
+    this.releaseGroqAudioStream();
   }
 
   toggleListening() {
