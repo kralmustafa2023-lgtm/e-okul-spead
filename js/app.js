@@ -44,11 +44,12 @@ class EOkulSpeadApp {
     this.isSpeaking = false;
     this.lastSpeechTime = 0;
     this.speechStartTime = 0;
-    this.speechThreshold = 26; // Gürültü ve arka plan konuşmalarını kesen yüksek hassasiyet eşiği
+    this.speechThreshold = 32; // Hafif ortam seslerinin yeni konuşma parçası başlatmasını azaltır
     this.isTranscribing = false;
     this.groqVadInterval = null;
     this.minimumGroqSpeechDurationMs = 450;
     this.groqSpeechHangoverMs = 650;
+    this.groqSpeechStartCandidateAt = 0;
     this.discardCurrentGroqSegment = false;
     this.groqSlotStartedAt = 0;
     this.groqSlotTimeoutMs = 15000;
@@ -752,6 +753,7 @@ class EOkulSpeadApp {
       recorder.start();
       this.isGroqRecording = true;
       this.isSpeaking = false;
+      this.groqSpeechStartCandidateAt = 0;
       this.lastSpeechTime = 0;
       this.speechStartTime = 0;
       this.discardCurrentGroqSegment = false;
@@ -793,23 +795,34 @@ class EOkulSpeadApp {
       const avg = sum / bufferLength;
 
       const now = Date.now();
-      const SPEECH_THRESHOLD = this.speechThreshold || 26; // Arka plan fısıltı ve tıkırtılarını kesen ses eşiği
+      const speechStartThreshold = this.speechThreshold || 32;
+      const speechContinueThreshold = speechStartThreshold * 0.68;
 
-      if (avg >= SPEECH_THRESHOLD) {
-        if (!this.isSpeaking) {
-          this.isSpeaking = true;
-          this.speechStartTime = now;
+      if (!this.isSpeaking) {
+        if (avg >= speechStartThreshold) {
+          if (!this.groqSpeechStartCandidateAt) this.groqSpeechStartCandidateAt = now;
+          // Tek karelik tıkırtılar yeni bir Whisper isteği başlatmasın.
+          if (now - this.groqSpeechStartCandidateAt >= 200) {
+            this.isSpeaking = true;
+            this.speechStartTime = this.groqSpeechStartCandidateAt;
+            this.lastSpeechTime = now;
+            this.groqSpeechStartCandidateAt = 0;
+            const statusEl = document.getElementById('mic-status-text');
+            if (statusEl) {
+              statusEl.textContent = this.isTranscribing
+                ? '🎙️ Konuşma algılandı... sıraya alınıyor'
+                : '🎙️ Konuşma Algılandı... (Dinliyor)';
+            }
+          }
+        } else {
+          this.groqSpeechStartCandidateAt = 0;
         }
+      } else if (avg >= speechContinueThreshold) {
         this.lastSpeechTime = now;
-        const statusEl = document.getElementById('mic-status-text');
-        if (statusEl) {
-          statusEl.textContent = this.isTranscribing
-            ? '🎙️ Konuşma algılandı... sıraya alınıyor'
-            : '🎙️ Konuşma Algılandı... (Dinliyor)';
-        }
       } else if (this.isSpeaking) {
         if (now - this.lastSpeechTime > this.groqSpeechHangoverMs) {
           this.isSpeaking = false;
+          this.groqSpeechStartCandidateAt = 0;
           // Gerçek ses süresini ölç; sessizlik bekleme süresini konuşma süresine katma.
           const speechDuration = this.lastSpeechTime - this.speechStartTime;
           this.discardCurrentGroqSegment = speechDuration < this.minimumGroqSpeechDurationMs;
@@ -925,11 +938,7 @@ class EOkulSpeadApp {
         if (this.isGarbageOrHallucination(text)) {
           console.warn('Gürültü/halüsinasyon metni filtrelendi:', text);
           if (livePreview) livePreview.textContent = '⚠️ Arka plan karmaşa sesi filtrelendi.';
-          if (this.currentSlots.length > 0) {
-            this.currentSlots = [];
-            this.groqSlotStartedAt = 0;
-            this.renderLiveSlots();
-          }
+          // Gürültü parçasını yok say; önceki doğru sayılar kutularda kalsın.
           return;
         }
         if (livePreview) livePreview.textContent = text;
@@ -947,12 +956,7 @@ class EOkulSpeadApp {
           }
 
           if (!this.validateGroqNumbers(numbers)) {
-            this.showToast('Whisper geçersiz veya aralık dışı sayılar üretti; kayıt eklenmedi.', 'warning');
-            if (this.currentSlots.length > 0) {
-              this.currentSlots = [];
-              this.groqSlotStartedAt = 0;
-              this.renderLiveSlots();
-            }
+            this.showToast('Bu ses parçasındaki sayı aralık dışı; önceki kutular korundu.', 'warning');
             return;
           }
 
@@ -995,6 +999,7 @@ class EOkulSpeadApp {
     }
     this.isGroqRecording = false;
     this.isSpeaking = false;
+    this.groqSpeechStartCandidateAt = 0;
     this.recordedAudioChunks = [];
     // Yarım kalan veya gürültüden gelen sayılar sonraki dinleme oturumuna taşınmasın.
     this.currentSlots = [];
