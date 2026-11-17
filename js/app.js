@@ -206,11 +206,13 @@ class EOkulSpeadApp {
 
     this.recognition.onresult = (event) => {
       let finalSegment = '';
+      const finalTranscripts = [];
       let interimSegment = '';
 
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         const text = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
+          finalTranscripts.push(text);
           finalSegment += ' ' + text;
         } else {
           interimSegment += ' ' + text;
@@ -229,9 +231,13 @@ class EOkulSpeadApp {
           clearTimeout(this._silenceTimer);
           this._silenceTimer = null;
         }
-        const numbers = TurkishNumberParser.extractNumbers(finalSegment);
-        if (numbers && numbers.length > 0) {
-          this.feedNumbers(numbers);
+        // Ayrı kesinleşmiş sonuçları birleştirme: "yüz" ve "elli" farklı
+        // sonuçlardaysa bunlar iki ayrı puandır, "yüz elli" (150) değildir.
+        for (const transcript of finalTranscripts) {
+          const numbers = TurkishNumberParser.extractNumbers(transcript);
+          if (numbers && numbers.length > 0) {
+            this.feedNumbers(numbers);
+          }
         }
       }
 
