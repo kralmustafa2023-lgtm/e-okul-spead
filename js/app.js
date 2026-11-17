@@ -234,6 +234,11 @@ class EOkulSpeadApp {
         // Ayrı kesinleşmiş sonuçları birleştirme: "yüz" ve "elli" farklı
         // sonuçlardaysa bunlar iki ayrı puandır, "yüz elli" (150) değildir.
         for (const transcript of finalTranscripts) {
+          if (!this.isNumericOnlyTranscript(transcript)) {
+            if (livePreview) livePreview.textContent = 'Konuşma yok sayıldı. Yalnızca sayıları okuyun.';
+            continue;
+          }
+          if (livePreview) livePreview.textContent = transcript.trim();
           const numbers = this.normalizeWebMicNumbers(TurkishNumberParser.extractNumbers(transcript));
           if (numbers && numbers.length > 0) {
             this.feedNumbers(numbers);
@@ -243,9 +248,13 @@ class EOkulSpeadApp {
 
       // 2. HENÜZ KESİNLEŞMEMİŞ (INTERIM) SESLER İÇİN 0ms ANINDA GÖRSEL GERİ BİLDİRİM
       if (interimSegment.trim()) {
-        const interimNumbers = TurkishNumberParser.extractNumbers(interimSegment);
+        const isNumericOnly = this.isNumericOnlyTranscript(interimSegment);
+        const interimNumbers = isNumericOnly ? TurkishNumberParser.extractNumbers(interimSegment) : [];
         // Canlı kutucuklarda anında önizleme göster
         this.renderLiveSlots(interimNumbers);
+        if (!isNumericOnly && livePreview) {
+          livePreview.textContent = 'Konuşma yok sayıldı. Yalnızca sayıları okuyun.';
+        }
 
         // Kullanıcı konuşmayı bitirdikten sonra Chrome'un 2 saniyelik gereksiz beklemesini
         // atlatmak için 600ms sessizlik sonrası recognition.stop() çağırarak hızlı kesinleştir
@@ -259,9 +268,24 @@ class EOkulSpeadApp {
               this.recognition.stop(); // Chrome bu parçayı anında finalize edip onresult(isFinal=true) tetikler
             } catch (e) {}
           }
-        }, 250);
+        }, 600);
       }
     };
+  }
+
+  isNumericOnlyTranscript(transcript) {
+    const normalized = TurkishNumberParser.normalize(transcript);
+    if (!normalized) return false;
+
+    const numberWords = new Set([
+      'sıfır', 'sifir',
+      'bir', 'iki', 'üç', 'uc', 'dört', 'dort', 'beş', 'bes',
+      'altı', 'alti', 'yedi', 'sekiz', 'dokuz',
+      'on', 'yirmi', 'otuz', 'kırk', 'kirk', 'elli', 'altmış',
+      'altmis', 'yetmiş', 'yetmis', 'seksen', 'doksan', 'yüz', 'yuz', 'bin'
+    ]);
+
+    return normalized.split(/\s+/).every((token) => /^\d+$/.test(token) || numberWords.has(token));
   }
 
   normalizeWebMicNumbers(numbers) {
@@ -1051,7 +1075,7 @@ class EOkulSpeadApp {
             this._silenceTimer = null;
           }
           this.recognition.start();
-          this.showToast('🌐 Web Mikrofonu açıldı! Öğrencileri sırayla okuyabilirsiniz.', 'success');
+          this.showToast('🌐 Web Mikrofonu açıldı! Yalnızca sayıları sırayla okuyun.', 'success');
         } catch (e) {
           console.error('Web mikrofon başlatılamadı:', e);
         }
