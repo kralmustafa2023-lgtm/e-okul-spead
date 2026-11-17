@@ -34,7 +34,6 @@ class EOkulSpeadApp {
 
     // SES MOTORU: 'groq' (Groq Whisper-large-v3) veya 'web' (Tarayıcı Web Speech API)
     this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
-    this.groqApiKey = localStorage.getItem('groq_api_key') || '';
     this.groqModel = 'whisper-large-v3';
 
     // Groq MediaRecorder ve VAD durumu
@@ -663,22 +662,8 @@ class EOkulSpeadApp {
   }
 
   configureGroqApiKey() {
-    const enteredKey = window.prompt(
-      'Whisper AI için Groq API anahtarınızı girin. Anahtar yalnızca bu tarayıcıda saklanır:',
-      this.groqApiKey || ''
-    );
-    if (enteredKey === null) return false;
-
-    const apiKey = enteredKey.trim();
-    if (!apiKey.startsWith('gsk_') || apiKey.length < 20) {
-      this.showToast('Geçerli bir Groq API anahtarı girin.', 'warning');
-      return false;
-    }
-
-    this.groqApiKey = apiKey;
-    localStorage.setItem('groq_api_key', apiKey);
-    this.showToast('Groq API anahtarı bu tarayıcıya kaydedildi.', 'success');
-    return true;
+    this.showToast('Whisper anahtarı tüm cihazlar için sunucu ayarından yönetilir.', 'info');
+    return false;
   }
 
   updateEngineUI() {
@@ -713,14 +698,6 @@ class EOkulSpeadApp {
     const sessionId = ++this.groqSessionId;
     let sessionStream = null;
     try {
-      if (!this.groqApiKey && !this.configureGroqApiKey()) {
-        if (this.isCurrentGroqSession(sessionId)) {
-          this.isListening = false;
-          this.updateMicUI(false);
-        }
-        return;
-      }
-
       if (!this.micStream || !this.micStream.active) {
         sessionStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -934,10 +911,15 @@ class EOkulSpeadApp {
       form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
       form.append('response_format', 'json');
 
-      const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      const user = window.db?.auth?.currentUser;
+      if (!user) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
+      const idToken = await user.getIdToken();
+      if (!this.isCurrentGroqSession(sessionId)) return;
+
+      const resp = await fetch('/api/transcriptions', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + this.groqApiKey
+          'Authorization': 'Bearer ' + idToken
         },
         body: form,
         signal: controller.signal
