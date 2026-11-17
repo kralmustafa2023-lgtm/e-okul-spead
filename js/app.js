@@ -234,7 +234,7 @@ class EOkulSpeadApp {
         // Ayrı kesinleşmiş sonuçları birleştirme: "yüz" ve "elli" farklı
         // sonuçlardaysa bunlar iki ayrı puandır, "yüz elli" (150) değildir.
         for (const transcript of finalTranscripts) {
-          const numbers = TurkishNumberParser.extractNumbers(transcript);
+          const numbers = this.normalizeWebMicNumbers(TurkishNumberParser.extractNumbers(transcript));
           if (numbers && numbers.length > 0) {
             this.feedNumbers(numbers);
           }
@@ -259,9 +259,30 @@ class EOkulSpeadApp {
               this.recognition.stop(); // Chrome bu parçayı anında finalize edip onresult(isFinal=true) tetikler
             } catch (e) {}
           }
-        }, 600);
+        }, 250);
       }
     };
+  }
+
+  normalizeWebMicNumbers(numbers) {
+    if (!Array.isArray(numbers) || numbers.length === 0) return [];
+
+    const rowSize = 2 + this.settings.questionCount;
+    const normalized = [];
+
+    for (const number of numbers) {
+      const slotIndex = (this.currentSlots.length + normalized.length) % rowSize;
+
+      // Tek bir Web Speech sonucu 100 + 1..99 puanlarını (örn. 100 ve 50)
+      // "150" diye birleştirdiyse, yalnızca soru puanı kutularında ayır.
+      if (slotIndex >= 2 && number > 100 && number < 200) {
+        normalized.push(100, number - 100);
+      } else {
+        normalized.push(number);
+      }
+    }
+
+    return normalized;
   }
 
   // ── Güvenli Yeniden Başlatma ──
