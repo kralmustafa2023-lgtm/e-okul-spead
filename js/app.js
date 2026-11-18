@@ -1544,7 +1544,7 @@ class EOkulSpeadApp {
     if (parsedStudents.length !== 3) {
       return {
         ok: false,
-        message: `Whisper ${parsedStudents.length} öğrenci ayırt etti; her kayıtta tam 3 öğrenci bekleniyor.`
+        message: 'Kayıt üç öğrenci olarak çözümlenemedi. Lütfen tekrar deneyin.'
       };
     }
 
@@ -1647,12 +1647,11 @@ class EOkulSpeadApp {
         return;
       }
 
-      finalPreview = `Whisper metni: ${text}`;
       const parsed = this.prepareThreeStudentEntries(text);
       if (!parsed.ok) {
         this.retryWhisperAudioBlob = audioBlob;
         if (retryButton) retryButton.classList.remove('hidden');
-        finalPreview += ` — ${parsed.message} Kaydı tekrar Whisper’a gönderebilir veya yeniden kaydedebilirsiniz.`;
+        finalPreview = parsed.message;
         this.showToast(parsed.message, 'warning');
         return;
       }
@@ -1667,7 +1666,7 @@ class EOkulSpeadApp {
 
       const studentNumbers = parsed.students.map(student => student.entry.studentNo);
       const mismatchedTotals = parsed.students.filter(student => !student.entry.totalsMatch).length;
-      finalPreview += ` — 3 öğrenci kaydedildi: ${studentNumbers.join(', ')}.`;
+      finalPreview = `3 öğrenci kaydedildi: ${studentNumbers.join(', ')}.`;
       if (mismatchedTotals > 0) {
         finalPreview += ` ${mismatchedTotals} öğrencide söylenen toplam ile soru puanları uyuşmuyor; tabloyu kontrol edin.`;
         this.showToast(`3 öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.`, 'warning');
@@ -2103,9 +2102,6 @@ class EOkulSpeadApp {
     this.currentSlots = [];
     this.groqSlotStartedAt = 0;
 
-    const formatHint = document.getElementById('spoken-record-format-hint');
-    if (formatHint) formatHint.textContent = this.getVoiceScoreFormatHint();
-
     // Girmeyen öğrencilerin 0 puanlı dizi boyutunu yeni soru sayısına uyarla
     this.students.forEach(s => {
       if (s.isAbsent) {
@@ -2175,8 +2171,6 @@ class EOkulSpeadApp {
     if (schemaBadge) schemaBadge.textContent = `Soru Puanları (${this.settings.questionCount} adet)`;
 
     const formatHint = this.getVoiceScoreFormatHint();
-    const spokenRecordHint = document.getElementById('spoken-record-format-hint');
-    if (spokenRecordHint) spokenRecordHint.textContent = formatHint;
     const livePreview = document.getElementById('speech-live-preview');
     if (livePreview && !this.isListening && !this.isTranscribing && !this.isStartingOneShotRecording) {
       livePreview.textContent = `Kaydı başlatın. ${formatHint} Whisper üç öğrenciyi tabloya ekler.`;

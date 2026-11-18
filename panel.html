@@ -114,12 +114,9 @@
               </div>
               
               <!-- Kullanılan transkripsiyon sağlayıcısı -->
-              <div class="flex items-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 text-xs">
-                <span class="px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 bg-violet-600 text-white shadow-md shadow-violet-600/30" aria-label="Ses metne Whisper AI ile çevrilecek">
-                  <span aria-hidden="true">⚡</span> Whisper AI
-                </span>
-                <button type="button" onclick="app.configureGroqApiKey()" class="min-w-11 min-h-11 px-2 py-1 rounded-lg font-medium text-slate-300 hover:text-white transition" title="Whisper için sunucu anahtarı veya isteğe bağlı cihaz anahtarı ayarları">🔑</button>
-              </div>
+              <span class="px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 bg-violet-600 text-white shadow-md shadow-violet-600/30 text-xs" aria-label="Ses metne Whisper AI ile çevrilecek">
+                <span aria-hidden="true">⚡</span> Whisper AI
+              </span>
             </div>
             
             <!-- Kayıt durumu ve tanınan metin -->
@@ -158,9 +155,6 @@
               <div id="live-slots-container" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
               </div>
 
-              <p class="text-[10px] text-slate-400 flex items-center gap-1 pt-0.5">
-                <span>💡</span> <em>İpucu:</em> <span id="spoken-record-format-hint">Etiket kullanmadan yalnızca sayıları sırayla söyleyin: okul numarası, toplam puan, sonra her sorunun puanı. Üç öğrenciyi aynı kayıtta arka arkaya okuyun.</span> Üç öğrenci eksiksiz tanınırsa birlikte eklenir; puan toplamları uyuşmuyorsa tabloda uyarı görünür.
-              </p>
             </div>
 
             <!-- Mantık Şeması -->
