@@ -100,6 +100,10 @@ class EOkulSpeadApp {
       if (savedSettings) {
         this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
       }
+      const savedQuestionCount = Number(this.settings.questionCount);
+      this.settings.questionCount = Number.isInteger(savedQuestionCount) && savedQuestionCount >= 1 && savedQuestionCount <= 30
+        ? savedQuestionCount
+        : 4;
     } catch (e) {
       console.warn('LocalStorage yükleme hatası:', e);
     }
@@ -1207,19 +1211,20 @@ class EOkulSpeadApp {
     return true;
   }
 
-  async requestWhisperTranscription(audioBlob, signal, shouldContinue = () => true) {
+  async requestWhisperTranscription(audioBlob, signal, shouldContinue = () => true, promptMode = 'context') {
     if (!shouldContinue()) return '';
     const mimeType = audioBlob.type || this.mediaRecorderMimeType || 'audio/webm';
     const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
-    const questionCount = this.settings.questionCount;
-    const valuesPerStudent = questionCount + 2;
+    const questionCount = Number(this.settings.questionCount);
     const createFormData = () => {
       const form = new FormData();
       form.append('file', audioBlob, `audio.${ext}`);
       form.append('model', this.groqModel);
       form.append('temperature', '0');
       form.append('language', 'tr');
-      form.append('prompt', `Türkçe sınav puanı diktesi. Tek kayıtta bir veya daha fazla öğrenci grubu olabilir. Konuşmacı etiket kullanmadan yalnızca sayıları sırayla okur. Her ${valuesPerStudent} sayı bir öğrenciye aittir: önce okul numarası, sonra toplam puan, ardından ${questionCount} soru puanı. Söylenen bütün sayıları rakam olarak ve aynı sırayla yaz; sayı ekleme, çıkarma veya sıralarını değiştirme.`);
+      if (promptMode === 'context') {
+        form.append('prompt', `Türkçe sınav notu diktesi; öğrenci numarası, toplam puan ve her öğrenci için ${questionCount} soru puanı.`);
+      }
       form.append('response_format', 'json');
       return form;
     };
@@ -1537,9 +1542,13 @@ class EOkulSpeadApp {
   }
 
   prepareStudentEntriesFromTranscript(transcript) {
+    const selectedQuestionCount = Number(this.settings.questionCount);
+    if (!Number.isInteger(selectedQuestionCount) || selectedQuestionCount < 1 || selectedQuestionCount > 30) {
+      return { ok: false, message: 'Lütfen sınav soru sayısını 1 ile 30 arasında seçin.' };
+    }
     const parsedStudents = TurkishNumberParser.parseAllStudentsFromText(
       transcript,
-      this.settings.questionCount
+      selectedQuestionCount
     );
     if (parsedStudents.length === 0) {
       return {
@@ -1626,17 +1635,35 @@ class EOkulSpeadApp {
     let finalPreview = '';
 
     try {
-      const text = await this.requestWhisperTranscription(
+      let text = await this.requestWhisperTranscription(
         audioBlob,
         controller.signal,
         () => transcriptionId === this.oneShotTranscriptionId
       );
       if (transcriptionId !== this.oneShotTranscriptionId) return;
+      if (!text || TurkishNumberParser.extractNumbers(text).length === 0) {
+        console.info('Whisper sayıları tanıyamadı; kısa bağlamsız tekrar deneniyor.');
+        const fallbackText = await this.requestWhisperTranscription(
+          audioBlob,
+          controller.signal,
+          () => transcriptionId === this.oneShotTranscriptionId,
+          'none'
+        );
+        if (fallbackText) text = fallbackText;
+        if (transcriptionId !== this.oneShotTranscriptionId) return;
+      }
       if (!text) {
         this.retryWhisperAudioBlob = audioBlob;
         if (retryButton) retryButton.classList.remove('hidden');
         finalPreview = 'Whisper konuşmayı algılayamadı. Daha net ve biraz daha yüksek sesle tekrar deneyin.';
         this.showToast('Ses kaydında konuşma algılanamadı.', 'warning');
+        return;
+      }
+      if (TurkishNumberParser.extractNumbers(text).length === 0) {
+        this.retryWhisperAudioBlob = audioBlob;
+        if (retryButton) retryButton.classList.remove('hidden');
+        finalPreview = 'Sayılar tanınamadı. Soru sayısını kontrol edip daha net bir kayıt deneyin.';
+        this.showToast('Sayılar tanınamadı. Kaydı tekrar deneyin.', 'warning');
         return;
       }
       if (this.isGarbageOrHallucination(text)) {
@@ -2091,8 +2118,13 @@ class EOkulSpeadApp {
   }
 
   updateQuestionCount(newCount) {
-    const val = parseInt(newCount, 10);
-    if (val < 1 || val > 30) return;
+    const val = Number(newCount);
+    if (!Number.isInteger(val) || val < 1 || val > 30) {
+      const qCountInput = document.getElementById('setting-question-count');
+      if (qCountInput) qCountInput.value = String(this.settings.questionCount);
+      this.showToast('Soru sayısı 1 ile 30 arasında tam sayı olmalıdır.', 'warning');
+      return;
+    }
     this.settings.questionCount = val;
     this.currentSlots = [];
     this.groqSlotStartedAt = 0;

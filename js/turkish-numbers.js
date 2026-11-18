@@ -20,7 +20,7 @@ const TurkishNumberParser = (() => {
     'seksen': 80, 'doksan': 90
   };
 
-  function normalize(rawText) {
+  function normalize(rawText, options = {}) {
     if (!rawText) return '';
     let text = rawText.toLocaleLowerCase('tr-TR');
 
@@ -31,20 +31,24 @@ const TurkishNumberParser = (() => {
     const qRegex = /(?<![0-9a-zğüşıöç])(?:[1-9]|10)\.?\s*soru|(?:birinci|ikinci|üçüncü|dördüncü|beşinci|altıncı|yedinci|sekizinci|dokuzuncu|onuncu)\s*soru(?![a-zğüşıöç])/gui;
     text = text.replace(qRegex, ' ');
 
-    // 2. Binlik ayıracı noktaları kaldır (yalnızca 1-2 basamak + nokta + tam 3 basamak: örn "1.016" -> "1016", "2.500" -> "2500")
-    // "14.85" veya "14. 85" gibi notlar BİNLİK DEĞİLDİR, ayrık iki sayıdır!
-    text = text.replace(/\b(\d{1,2})\.(\d{3})\b/g, '$1$2');
+    // Sayı akışlarında noktalama sınırdır; "12, 100" iki ayrı puandır.
+    // Tek bir sayıyı metin olarak çözümlerken binlik ayıracı desteğini koru.
+    if (options.mergeGroupedNumbers !== false) {
+      text = text.replace(/\b(\d{1,2})\.(\d{3})\b/g, '$1$2');
+    }
 
     // 3. Nokta da dahil tüm noktalama işaretlerini boşluğa çevir (güvenli regex, character range hatası giderildi)
     text = text.replace(/[.,\/#!$%^&*;:{}=_`~()?’"“”—\\-]/g, ' ');
 
-    // 4. "1 016" -> "1016" (1 veya 2 basamak + 3 basamak binlik boşluklu sayı)
-    text = text.replace(/\b(\d{1,2})\s+(\d{3})\b/g, '$1$2');
+    if (options.mergeGroupedNumbers !== false) {
+      // "1 016" -> "1016" (yalnız tek sayı metni çözümlenirken)
+      text = text.replace(/\b(\d{1,2})\s+(\d{3})\b/g, '$1$2');
 
-    // 5. "1000 16" veya "2000 16" -> "1016", "2016"
-    text = text.replace(/\b([1-9]000)\s+(\d{1,3})\b/g, (match, thousands, rem) => {
-      return String(parseInt(thousands, 10) + parseInt(rem, 10));
-    });
+      // "1000 16" veya "2000 16" -> "1016", "2016"
+      text = text.replace(/\b([1-9]000)\s+(\d{1,3})\b/g, (match, thousands, rem) => {
+        return String(parseInt(thousands, 10) + parseInt(rem, 10));
+      });
+    }
 
     // 6. Bitişik yazılan bileşik Türkçe sayıları ayır (Örn: "ondört" -> "on dört", "yirmibeş" -> "yirmi beş", "seksenbeş" -> "seksen beş")
     const tens = 'doksan|seksen|yetmiş|yetmis|altmış|altmis|elli|kırk|kirk|otuz|yirmi|on';
@@ -78,8 +82,8 @@ const TurkishNumberParser = (() => {
    *  "bin iki yüz kırk" -> [1240]
    *  "sıfır" / "boş" / "yok" -> [0]
    */
-  function extractNumbers(rawText) {
-    const text = normalize(rawText);
+  function extractNumbers(rawText, options = {}) {
+    const text = normalize(rawText, options);
     if (!text) return [];
 
     const tokens = text.split(' ').filter(Boolean);
@@ -342,7 +346,7 @@ const TurkishNumberParser = (() => {
     if (students.length > 0) return students;
 
     // 2. Ardışık sayılar formatı (örn: "15 60 20 20 20 18 80 20 30 30")
-    const allNums = extractNumbers(lower);
+    const allNums = extractNumbers(lower, { mergeGroupedNumbers: false });
     const rowSize = 2 + expectedQCount;
     for (let i = 0; i < allNums.length; i += rowSize) {
       const chunk = allNums.slice(i, i + rowSize);
