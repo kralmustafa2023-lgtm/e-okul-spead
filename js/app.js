@@ -1219,7 +1219,7 @@ class EOkulSpeadApp {
       form.append('model', this.groqModel);
       form.append('temperature', '0');
       form.append('language', 'tr');
-      form.append('prompt', `Türkçe sınav puanı diktesi. Tek kayıtta tam 3 öğrenci vardır. Konuşmacı etiket kullanmadan yalnızca sayıları sırayla okur. Her öğrenci için sıra: okul numarası, toplam puan, ardından ${questionCount} soru puanı; her öğrenci ${valuesPerStudent} sayıdan oluşur. Söylenen bütün sayıları rakam olarak ve aynı sırayla yaz; sayı ekleme, çıkarma veya sıralarını değiştirme.`);
+      form.append('prompt', `Türkçe sınav puanı diktesi. Tek kayıtta bir veya daha fazla öğrenci grubu olabilir. Konuşmacı etiket kullanmadan yalnızca sayıları sırayla okur. Her ${valuesPerStudent} sayı bir öğrenciye aittir: önce okul numarası, sonra toplam puan, ardından ${questionCount} soru puanı. Söylenen bütün sayıları rakam olarak ve aynı sırayla yaz; sayı ekleme, çıkarma veya sıralarını değiştirme.`);
       form.append('response_format', 'json');
       return form;
     };
@@ -1478,7 +1478,7 @@ class EOkulSpeadApp {
       if (this.settings.soundEnabled && typeof SoundEffects !== 'undefined' && SoundEffects.playRecordStart) {
         SoundEffects.playRecordStart();
       }
-      this.showToast('Ses kaydı başladı. Üç öğrenciyi sırayla söyleyin; bitince kırmızı düğmeye basın.', 'info');
+      this.showToast(`Ses kaydı başladı. ${this.getVoiceScoreFormatHint()} Bitince kırmızı düğmeye basın.`, 'info');
     } catch (error) {
       console.error('Ses kaydı başlatılamadı:', error);
       if (this.oneShotStream) {
@@ -1536,15 +1536,15 @@ class EOkulSpeadApp {
     }
   }
 
-  prepareThreeStudentEntries(transcript) {
+  prepareStudentEntriesFromTranscript(transcript) {
     const parsedStudents = TurkishNumberParser.parseAllStudentsFromText(
       transcript,
       this.settings.questionCount
     );
-    if (parsedStudents.length !== 3) {
+    if (parsedStudents.length === 0) {
       return {
         ok: false,
-        message: 'Kayıt üç öğrenci olarak çözümlenemedi. Lütfen tekrar deneyin.'
+        message: 'Kayıttan öğrenci grubu çıkarılamadı. Lütfen soru sayısını ve konuşulan sayıları kontrol edip tekrar deneyin.'
       };
     }
 
@@ -1569,7 +1569,7 @@ class EOkulSpeadApp {
     const students = [];
     for (const parsed of parsedStudents) {
       if (!Number.isSafeInteger(parsed.studentNo) || parsed.studentNo <= 0) {
-        return { ok: false, message: 'Üç kayıttan en az birinde öğrenci numarası tanınmadı.' };
+        return { ok: false, message: 'Öğrenci numarası tanınmayan bir grup var. Kaydı tekrar deneyin.' };
       }
       if (!Number.isSafeInteger(parsed.statedTotal) || parsed.statedTotal < 0) {
         return { ok: false, message: `Öğrenci ${parsed.studentNo} için toplam puan tanınmadı.` };
@@ -1647,7 +1647,7 @@ class EOkulSpeadApp {
         return;
       }
 
-      const parsed = this.prepareThreeStudentEntries(text);
+      const parsed = this.prepareStudentEntriesFromTranscript(text);
       if (!parsed.ok) {
         this.retryWhisperAudioBlob = audioBlob;
         if (retryButton) retryButton.classList.remove('hidden');
@@ -1664,14 +1664,13 @@ class EOkulSpeadApp {
         this.addOrUpdateStudent(student.entry, student.rawSpeech, { silent: true });
       });
 
-      const studentNumbers = parsed.students.map(student => student.entry.studentNo);
       const mismatchedTotals = parsed.students.filter(student => !student.entry.totalsMatch).length;
-      finalPreview = `3 öğrenci kaydedildi: ${studentNumbers.join(', ')}.`;
+      finalPreview = `${parsed.students.length} öğrenci kaydedildi.`;
       if (mismatchedTotals > 0) {
         finalPreview += ` ${mismatchedTotals} öğrencide söylenen toplam ile soru puanları uyuşmuyor; tabloyu kontrol edin.`;
-        this.showToast(`3 öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.`, 'warning');
+        this.showToast(`${parsed.students.length} öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.`, 'warning');
       } else {
-        this.showToast('3 öğrenci başarıyla tabloya eklendi veya güncellendi.', 'success');
+        this.showToast(`${parsed.students.length} öğrenci başarıyla tabloya eklendi veya güncellendi.`, 'success');
       }
     } catch (error) {
       if (error.name === 'AbortError') return;
@@ -1725,7 +1724,7 @@ class EOkulSpeadApp {
       if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
       if (micPulse) micPulse.classList.add('hidden');
       if (micTimer) micTimer.classList.add('hidden');
-      if (livePreview) livePreview.textContent = statusMessage || 'Kayıt Whisper AI ile çözümleniyor. Üç öğrencinin numara ve puanları hazırlanıyor…';
+      if (livePreview) livePreview.textContent = statusMessage || 'Kayıt Whisper AI ile çözümleniyor. Öğrenci grupları hazırlanıyor…';
     } else if (active) {
       if (micBtn) {
         micBtn.disabled = false;
@@ -1759,18 +1758,14 @@ class EOkulSpeadApp {
         micTimer.classList.add('hidden');
         micTimer.textContent = '00:00';
       }
-      if (livePreview) livePreview.textContent = `Kaydı başlatın. ${this.getVoiceScoreFormatHint()} Whisper üç öğrenciyi tabloya ekler.`;
+      if (livePreview) livePreview.textContent = `Kaydı başlatın. ${this.getVoiceScoreFormatHint()} Tam gruplar tabloya eklenir.`;
     }
   }
 
   getVoiceScoreFormatHint() {
     const questionCount = this.settings.questionCount;
     const valuesPerStudent = questionCount + 2;
-    const totalValues = valuesPerStudent * 3;
-    const threeQuestionExample = questionCount === 3
-      ? ' Yani toplam 15 sayı: ilk 5 birinci, sonraki 5 ikinci, son 5 üçüncü öğrenci.'
-      : '';
-    return `Etiket söylemeyin. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin. Öğrenci başına ${valuesPerStudent} sayı; 3 öğrenci için toplam ${totalValues} sayı.${threeQuestionExample}`;
+    return `Etiket söylemeyin. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin. Her ${valuesPerStudent} sayı bir öğrenciyi oluşturur; istediğiniz kadar tam grup okuyabilirsiniz.`;
   }
 
   addOrUpdateStudent(entry, rawSpeech = '', options = {}) {
@@ -2173,7 +2168,7 @@ class EOkulSpeadApp {
     const formatHint = this.getVoiceScoreFormatHint();
     const livePreview = document.getElementById('speech-live-preview');
     if (livePreview && !this.isListening && !this.isTranscribing && !this.isStartingOneShotRecording) {
-      livePreview.textContent = `Kaydı başlatın. ${formatHint} Whisper üç öğrenciyi tabloya ekler.`;
+      livePreview.textContent = `Kaydı başlatın. ${formatHint} Tam gruplar tabloya eklenir.`;
     }
 
     const autoSortCheck = document.getElementById('setting-auto-sort');

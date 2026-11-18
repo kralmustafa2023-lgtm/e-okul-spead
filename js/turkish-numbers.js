@@ -346,9 +346,9 @@ const TurkishNumberParser = (() => {
     const rowSize = 2 + expectedQCount;
     for (let i = 0; i < allNums.length; i += rowSize) {
       const chunk = allNums.slice(i, i + rowSize);
-      if (chunk.length >= 2) {
+      if (chunk.length > 0) {
         const studentNo = chunk[0];
-        const statedTotal = chunk[1];
+        const statedTotal = chunk[1] ?? null;
         const scores = chunk.slice(2);
         const calculatedTotal = scores.reduce((s, v) => s + v, 0);
         students.push({
