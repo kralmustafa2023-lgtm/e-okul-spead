@@ -32,8 +32,16 @@ class EOkulSpeadApp {
     // [OkulNo, ToplamPuan, Soru1, Soru2, Soru3, Soru4]
     this.currentSlots = [];
 
+    // ÖZEL SES KAYIT BUTONU (Şu An Okunan Öğrenci İçin Anlık Kayıt)
+    this.isSlotRecording = false;
+    this.slotRecordTimer = null;
+    this.slotRecordSeconds = 0;
+    this.slotRecognition = null;
+    this.slotAccumulatedTranscript = '';
+
     // SES MOTORU: 'groq' (Groq Whisper-large-v3) veya 'web' (Tarayıcı Web Speech API)
     this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
+    this.groqApiKey = localStorage.getItem('groq_api_key') || localStorage.getItem('eokul_spead_groq_api_key') || '';
     this.groqModel = 'whisper-large-v3';
 
     // Groq MediaRecorder ve VAD durumu
@@ -46,13 +54,13 @@ class EOkulSpeadApp {
     this.speechStartTime = 0;
     this.isTranscribing = false;
     this.groqVadInterval = null;
-    this.minimumGroqSpeechDurationMs = 180;
-    this.groqSpeechHangoverMs = 500;
+    this.minimumGroqSpeechDurationMs = 120;
+    this.groqSpeechHangoverMs = 700;
     this.groqSpeechStartCandidateAt = 0;
     this.groqNoiseFloor = 2;
     this.discardCurrentGroqSegment = false;
     this.groqSlotStartedAt = 0;
-    this.groqSlotTimeoutMs = 15000;
+    this.groqSlotTimeoutMs = 60000;
     this.groqTranscriptionQueue = Promise.resolve();
     this.groqSessionId = 0;
     this.activeTranscriptionController = null;
@@ -227,48 +235,30 @@ class EOkulSpeadApp {
 
       // 1. KESİNLEŞMİŞ (FINAL) SESLERİ ANINDA VE KESİN OLARAK İŞLE
       if (finalSegment.trim()) {
-        if (this._silenceTimer) {
-          clearTimeout(this._silenceTimer);
-          this._silenceTimer = null;
-        }
-        // Ayrı kesinleşmiş sonuçları birleştirme: "yüz" ve "elli" farklı
-        // sonuçlardaysa bunlar iki ayrı puandır, "yüz elli" (150) değildir.
         for (const transcript of finalTranscripts) {
-          if (!this.isNumericOnlyTranscript(transcript)) {
-            if (livePreview) livePreview.textContent = 'Konuşma yok sayıldı. Yalnızca sayıları okuyun.';
-            continue;
-          }
           if (livePreview) livePreview.textContent = transcript.trim();
-          const numbers = this.normalizeWebMicNumbers(TurkishNumberParser.extractNumbers(transcript));
-          if (numbers && numbers.length > 0) {
-            this.feedNumbers(numbers);
+          const parsed = TurkishNumberParser.parseSpokenStudent(transcript, this.settings.questionCount);
+          if (parsed && parsed.isLabeled) {
+            this.handleSpokenTranscript(transcript, true);
+          } else {
+            const numbers = this.normalizeWebMicNumbers(TurkishNumberParser.extractNumbers(transcript));
+            if (numbers && numbers.length > 0) {
+              this.feedNumbers(numbers);
+            }
           }
         }
       }
 
       // 2. HENÜZ KESİNLEŞMEMİŞ (INTERIM) SESLER İÇİN 0ms ANINDA GÖRSEL GERİ BİLDİRİM
       if (interimSegment.trim()) {
-        const isNumericOnly = this.isNumericOnlyTranscript(interimSegment);
-        const interimNumbers = isNumericOnly ? TurkishNumberParser.extractNumbers(interimSegment) : [];
-        // Canlı kutucuklarda anında önizleme göster
-        this.renderLiveSlots(interimNumbers);
-        if (!isNumericOnly && livePreview) {
-          livePreview.textContent = 'Konuşma yok sayıldı. Yalnızca sayıları okuyun.';
+        const parsed = TurkishNumberParser.parseSpokenStudent(interimSegment, this.settings.questionCount);
+        if (parsed && parsed.isLabeled) {
+          this.handleSpokenTranscript(interimSegment, false);
+        } else {
+          const interimNumbers = this.normalizeWebMicNumbers(TurkishNumberParser.extractNumbers(interimSegment));
+          // Canlı kutucuklarda anında önizleme göster
+          this.renderLiveSlots(interimNumbers);
         }
-
-        // Kullanıcı konuşmayı bitirdikten sonra Chrome'un 2 saniyelik gereksiz beklemesini
-        // atlatmak için 600ms sessizlik sonrası recognition.stop() çağırarak hızlı kesinleştir
-        if (this._silenceTimer) {
-          clearTimeout(this._silenceTimer);
-        }
-        this._silenceTimer = setTimeout(() => {
-          this._silenceTimer = null;
-          if (this.isListening) {
-            try {
-              this.recognition.stop(); // Chrome bu parçayı anında finalize edip onresult(isFinal=true) tetikler
-            } catch (e) {}
-          }
-        }, 600);
       }
     };
   }
@@ -519,11 +509,21 @@ class EOkulSpeadApp {
 
   // Canlı kutucuklar tamamlandığında öğrenciyi kaydet
   commitCurrentSlots() {
-    if (this.currentSlots.length < 2) return;
+    if (this.currentSlots.length < 2 || this.currentSlots[0] === undefined || this.currentSlots[1] === undefined) return;
 
-    const studentNo = this.currentSlots[0];
-    const statedTotal = this.currentSlots[1];
-    const scores = this.currentSlots.slice(2);
+    const studentNo = parseInt(this.currentSlots[0], 10);
+    const statedTotal = parseInt(this.currentSlots[1], 10);
+    if (isNaN(studentNo) || studentNo <= 0) {
+      this.showToast('Geçersiz öğrenci numarası!', 'warning');
+      return;
+    }
+
+    const scores = [];
+    for (let q = 0; q < this.settings.questionCount; q++) {
+      const val = this.currentSlots[2 + q];
+      scores.push((val !== undefined && val !== null && !isNaN(val)) ? parseInt(val, 10) : 0);
+    }
+
     const calculatedTotal = scores.reduce((sum, v) => sum + v, 0);
     const totalsMatch = statedTotal === calculatedTotal;
 
@@ -566,12 +566,264 @@ class EOkulSpeadApp {
     this.showToast('Aktif öğrenci kutucukları temizlendi.', 'info');
   }
 
+  // Kutucuğa doğrudan tıklanıp değer girildiğinde
+  setSlotValue(slotIndex, value) {
+    const val = value === '' ? undefined : parseInt(value, 10);
+    if (val === undefined || isNaN(val)) {
+      this.currentSlots[slotIndex] = undefined;
+    } else {
+      while (this.currentSlots.length <= slotIndex) {
+        this.currentSlots.push(undefined);
+      }
+      this.currentSlots[slotIndex] = val;
+    }
+    this.renderLiveSlots();
+
+    const neededTotal = 2 + this.settings.questionCount;
+    const filledCount = this.currentSlots.slice(0, neededTotal).filter(v => v !== undefined && v !== null).length;
+    if (filledCount === neededTotal) {
+      this.commitCurrentSlots();
+    }
+  }
+
+  // Manuel olarak mevcut slotları kaydet
+  commitManualSlots() {
+    if (this.currentSlots.length < 2 || this.currentSlots[0] === undefined || this.currentSlots[1] === undefined) {
+      this.showToast('En az Okul No ve Toplam puan girilmiş olmalıdır.', 'warning');
+      return;
+    }
+    this.commitCurrentSlots();
+  }
+
+  // Konuşulan veya kaydedilen metni slotlara aktar
+  handleSpokenTranscript(transcript, isFinal = false) {
+    if (!transcript) return;
+    const parsed = TurkishNumberParser.parseSpokenStudent(transcript, this.settings.questionCount);
+    if (!parsed) return;
+
+    if (parsed.isLabeled) {
+      // 1. Okul No
+      if (parsed.studentNo !== null) {
+        this.currentSlots[0] = parsed.studentNo;
+      }
+      // 2. Toplam
+      if (parsed.statedTotal !== null) {
+        this.currentSlots[1] = parsed.statedTotal;
+      }
+      // 3. Soru Puanları (S1, S2, S3...)
+      const answeredQs = Object.keys(parsed.questionScoresMap).map(Number);
+      if (answeredQs.length > 0) {
+        const maxQ = Math.max(...answeredQs);
+        if (maxQ !== this.settings.questionCount && parsed.totalsMatch && answeredQs.length >= 2) {
+          this.updateQuestionCount(maxQ);
+        }
+
+        for (let q = 0; q < this.settings.questionCount; q++) {
+          const slotIdx = 2 + q;
+          const qNum = q + 1;
+          if (parsed.questionScoresMap[qNum] !== undefined) {
+            this.currentSlots[slotIdx] = parsed.questionScoresMap[qNum];
+          }
+        }
+      }
+    } else {
+      // Ardışık (saf sayı) format
+      const nums = parsed.allNumbers;
+      if (nums.length > 0) {
+        const maxSlots = 2 + this.settings.questionCount;
+        for (let i = 0; i < nums.length && i < maxSlots; i++) {
+          this.currentSlots[i] = nums[i];
+        }
+      }
+    }
+
+    this.renderLiveSlots();
+
+    // Tüm kutular dolu mu?
+    const neededTotal = 2 + this.settings.questionCount;
+    const isComplete = this.currentSlots.length >= neededTotal &&
+      this.currentSlots.slice(0, neededTotal).every(v => v !== undefined && v !== null);
+
+    if (isComplete && isFinal) {
+      this.commitCurrentSlots();
+    }
+  }
+
+  // --- ÖZEL SES KAYDI BUTONU KONTROLLERİ ---
+  toggleVoiceRecording() {
+    if (this.isSlotRecording) {
+      this.stopVoiceRecording();
+    } else {
+      this.startVoiceRecording();
+    }
+  }
+
+  startVoiceRecording() {
+    if (this.isListening) {
+      this.toggleListening();
+    }
+    if (this.isAbsentListening) {
+      this.toggleAbsentListening();
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      this.showToast('Tarayıcınız ses tanıma desteklemiyor. Google Chrome veya Edge kullanın.', 'error');
+      return;
+    }
+
+    this.isSlotRecording = true;
+    this.slotAccumulatedTranscript = '';
+    this.slotRecordSeconds = 0;
+
+    // UI Güncelle
+    const recBtn = document.getElementById('btn-slot-record');
+    const recIcon = document.getElementById('slot-record-icon');
+    const recText = document.getElementById('slot-record-text');
+    const recTimer = document.getElementById('slot-record-timer');
+    const banner = document.getElementById('slot-recording-banner');
+
+    if (recBtn) {
+      recBtn.className = 'px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-red-600/40 animate-pulse active:scale-95 group';
+    }
+    if (recIcon) recIcon.textContent = '⏹️';
+    if (recText) recText.textContent = 'Kaydı Bitir & Aktar';
+    if (recTimer) {
+      recTimer.classList.remove('hidden');
+      recTimer.textContent = '00:00';
+    }
+    if (banner) banner.classList.remove('hidden');
+
+    if (this.settings.soundEnabled && typeof SoundEffects !== 'undefined' && SoundEffects.playRecordStart) {
+      SoundEffects.playRecordStart();
+    }
+
+    // Sayaç Başlat
+    if (this.slotRecordTimer) clearInterval(this.slotRecordTimer);
+    this.slotRecordTimer = setInterval(() => {
+      this.slotRecordSeconds++;
+      if (recTimer) {
+        const m = String(Math.floor(this.slotRecordSeconds / 60)).padStart(2, '0');
+        const s = String(this.slotRecordSeconds % 60).padStart(2, '0');
+        recTimer.textContent = `${m}:${s}`;
+      }
+    }, 1000);
+
+    this.initAudioVisualizer();
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'tr-TR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      this.slotRecognition = recognition;
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const text = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            final += ' ' + text;
+          } else {
+            interim += ' ' + text;
+          }
+        }
+
+        if (final.trim()) {
+          this.slotAccumulatedTranscript = (this.slotAccumulatedTranscript + ' ' + final).trim();
+        }
+
+        const currentCombined = (this.slotAccumulatedTranscript + ' ' + interim).trim();
+
+        const livePreview = document.getElementById('speech-live-preview');
+        if (livePreview) livePreview.textContent = currentCombined || 'Dinleniyor...';
+
+        this.handleSpokenTranscript(currentCombined, false);
+      };
+
+      recognition.onerror = (err) => {
+        console.warn('Slot ses tanıma hatası:', err);
+        if (err.error === 'not-allowed') {
+          this.showToast('Mikrofon izni verilmedi! Lütfen tarayıcı izinlerini kontrol edin.', 'error');
+          this.stopVoiceRecording();
+        }
+      };
+
+      recognition.onend = () => {
+        if (this.isSlotRecording && this.slotRecognition === recognition) {
+          try {
+            recognition.start();
+          } catch(e) {}
+        }
+      };
+
+      recognition.start();
+      this.showToast('🎙️ Ses kaydı başladı! Öğrenci notlarını söyleyin.', 'info');
+    } catch(err) {
+      console.error('Kayıt başlatılamadı:', err);
+      this.showToast('Ses kaydı başlatılamadı.', 'error');
+      this.stopVoiceRecording();
+    }
+  }
+
+  stopVoiceRecording() {
+    this.isSlotRecording = false;
+
+    if (this.slotRecordTimer) {
+      clearInterval(this.slotRecordTimer);
+      this.slotRecordTimer = null;
+    }
+
+    if (this.slotRecognition) {
+      const rec = this.slotRecognition;
+      this.slotRecognition = null;
+      try { rec.stop(); } catch(e) {}
+    }
+
+    this.stopAudioVisualizer();
+
+    if (this.settings.soundEnabled && typeof SoundEffects !== 'undefined' && SoundEffects.playRecordStop) {
+      SoundEffects.playRecordStop();
+    }
+
+    // UI Reset
+    const recBtn = document.getElementById('btn-slot-record');
+    const recIcon = document.getElementById('slot-record-icon');
+    const recText = document.getElementById('slot-record-text');
+    const recTimer = document.getElementById('slot-record-timer');
+    const banner = document.getElementById('slot-recording-banner');
+
+    if (recBtn) {
+      recBtn.className = 'px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-rose-600/30 active:scale-95 group';
+    }
+    if (recIcon) recIcon.textContent = '🔴';
+    if (recText) recText.textContent = 'Ses Kaydı Al';
+    if (recTimer) recTimer.classList.add('hidden');
+    if (banner) banner.classList.add('hidden');
+
+    // Son metni işle
+    if (this.slotAccumulatedTranscript.trim()) {
+      this.handleSpokenTranscript(this.slotAccumulatedTranscript.trim(), true);
+    }
+
+    const neededTotal = 2 + this.settings.questionCount;
+    const isComplete = this.currentSlots.length >= neededTotal &&
+      this.currentSlots.slice(0, neededTotal).every(v => v !== undefined && v !== null);
+
+    if (isComplete) {
+      this.commitCurrentSlots();
+    } else if (this.currentSlots.length > 0 && this.currentSlots[0] !== undefined) {
+      this.showToast('Söylediğiniz sayılar kutulara aktarıldı. Eksik kutuları tamamlayıp Tabloya Ekle butonuna basabilirsiniz.', 'info');
+    }
+  }
+
   // --- CANLI SLOTLARI ARAYÜZDE GÖRSELLEŞTİRME ---
   renderLiveSlots(interimNumbers = []) {
     const container = document.getElementById('live-slots-container');
     if (!container) return;
 
-    const totalSlots = 2 + this.settings.questionCount;
     let html = '';
 
     // Okul No Kutusu
@@ -582,15 +834,15 @@ class EOkulSpeadApp {
     html += `
       <div class="flex flex-col items-center">
         <span class="text-[10px] uppercase font-bold text-slate-400 mb-1">Okul No</span>
-        <div class="w-16 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${
-          committedNo !== undefined
-            ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-500/30 scale-105'
-            : isNoPreview
-            ? 'bg-indigo-950/80 text-indigo-200 border-indigo-400 border-dashed animate-pulse scale-105'
-            : 'bg-slate-800/80 text-slate-500 border-slate-700'
-        }">
-          ${previewNo !== '' ? previewNo : '?'}
-        </div>
+        <input type="number" min="1" value="${previewNo !== '' ? previewNo : ''}" placeholder="?"
+          onchange="app.setSlotValue(0, this.value)"
+          class="w-16 h-12 rounded-xl text-center font-mono font-bold text-sm border-2 transition-all outline-none ${
+            committedNo !== undefined
+              ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-500/30 scale-105'
+              : isNoPreview
+              ? 'bg-indigo-950/80 text-indigo-200 border-indigo-400 border-dashed animate-pulse scale-105'
+              : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:border-slate-500 focus:border-indigo-400 focus:text-white'
+          }">
       </div>
     `;
 
@@ -603,15 +855,15 @@ class EOkulSpeadApp {
     html += `
       <div class="flex flex-col items-center">
         <span class="text-[10px] uppercase font-bold text-slate-400 mb-1">Toplam</span>
-        <div class="w-14 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${
-          committedTot !== undefined
-            ? 'bg-violet-600 text-white border-violet-400 shadow-md shadow-violet-500/30 scale-105'
-            : isTotPreview
-            ? 'bg-violet-950/80 text-violet-200 border-violet-400 border-dashed animate-pulse scale-105'
-            : 'bg-slate-800/80 text-slate-500 border-slate-700'
-        }">
-          ${previewTot !== '' ? previewTot : '?'}
-        </div>
+        <input type="number" min="0" value="${previewTot !== '' ? previewTot : ''}" placeholder="?"
+          onchange="app.setSlotValue(1, this.value)"
+          class="w-14 h-12 rounded-xl text-center font-mono font-bold text-sm border-2 transition-all outline-none ${
+            committedTot !== undefined
+              ? 'bg-violet-600 text-white border-violet-400 shadow-md shadow-violet-500/30 scale-105'
+              : isTotPreview
+              ? 'bg-violet-950/80 text-violet-200 border-violet-400 border-dashed animate-pulse scale-105'
+              : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:border-slate-500 focus:border-violet-400 focus:text-white'
+          }">
       </div>
     `;
 
@@ -626,15 +878,15 @@ class EOkulSpeadApp {
       html += `
         <div class="flex flex-col items-center">
           <span class="text-[10px] uppercase font-bold text-slate-400 mb-1">S${q + 1}</span>
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm border-2 transition-all ${
-            committedQ !== undefined
-              ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/30 scale-105'
-              : isQPreview
-              ? 'bg-emerald-950/80 text-emerald-200 border-emerald-400 border-dashed animate-pulse scale-105'
-              : 'bg-slate-800/80 text-slate-500 border-slate-700'
-          }">
-            ${previewQ !== '' ? previewQ : '-'}
-          </div>
+          <input type="number" min="0" value="${previewQ !== '' && previewQ !== '-' ? previewQ : ''}" placeholder="-"
+            onchange="app.setSlotValue(${slotIndex}, this.value)"
+            class="w-12 h-12 rounded-xl text-center font-mono font-bold text-sm border-2 transition-all outline-none ${
+              committedQ !== undefined
+                ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/30 scale-105'
+                : isQPreview
+                ? 'bg-emerald-950/80 text-emerald-200 border-emerald-400 border-dashed animate-pulse scale-105'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:border-slate-500 focus:border-emerald-400 focus:text-white'
+            }">
         </div>
       `;
     }
@@ -659,8 +911,27 @@ class EOkulSpeadApp {
   }
 
   configureGroqApiKey() {
-    this.showToast('Whisper anahtarı tüm cihazlar için sunucu ayarından yönetilir.', 'info');
-    return false;
+    const currentKey = this.groqApiKey ? this.groqApiKey.substring(0, 8) + '...' : '';
+    const promptMsg = this.groqApiKey
+      ? `Mevcut Groq API Anahtarı: ${currentKey}\nYeni anahtar girin (veya sunucu moduna dönmek için boş bırakın):`
+      : 'Whisper AI için Groq API anahtarınızı (gsk_...) girin:\n(Sunucu üzerinden çalışıyorsa boş bırakabilirsiniz)';
+    const entered = window.prompt(promptMsg, this.groqApiKey || '');
+    if (entered === null) return false;
+    const cleanKey = entered.trim();
+    if (!cleanKey) {
+      this.groqApiKey = '';
+      localStorage.removeItem('groq_api_key');
+      this.showToast('Özel API anahtarı temizlendi. Sunucu proxy modu aktif.', 'info');
+      return true;
+    }
+    if (!cleanKey.startsWith('gsk_') || cleanKey.length < 20) {
+      this.showToast('Geçersiz Groq API anahtarı! (gsk_ ile başlamalıdır)', 'warning');
+      return false;
+    }
+    this.groqApiKey = cleanKey;
+    localStorage.setItem('groq_api_key', cleanKey);
+    this.showToast('Groq API anahtarı bu tarayıcıya kaydedildi!', 'success');
+    return true;
   }
 
   updateEngineUI() {
@@ -745,27 +1016,37 @@ class EOkulSpeadApp {
         const shouldTranscribe = !this.discardCurrentGroqSegment && this.isCurrentGroqSession(sessionId);
         this.discardCurrentGroqSegment = false;
 
+        // Chunk'ları hemen yakala ve diziyi temizle
         if (this.recordedAudioChunks === audioChunks) this.recordedAudioChunks = [];
-        if (audioChunks.length > 0) {
-          const audioBlob = new Blob(audioChunks, { type: this.mediaRecorderMimeType });
+        const capturedChunks = audioChunks.slice();
+        audioChunks.length = 0;
+
+        // ÖNCELİK: Kayıt cihazını ÖNCE yeniden başlat → ölü süreyi minimuma indir
+        // Eski kod burada race condition yaratıyordu (recorder.state kontrolü
+        // her zaman geçmiyordu). Artık 30ms güvenli gecikme ile başlatılıyor.
+        if (this.isCurrentGroqSession(sessionId) && this.mediaRecorder === recorder) {
+          setTimeout(() => {
+            if (this.isCurrentGroqSession(sessionId) && this.mediaRecorder === recorder && recorder.state === 'inactive') {
+              try {
+                recorder.start();
+              } catch (err) {
+                console.warn('Groq mediaRecorder yeniden başlatma hatası:', err);
+              }
+            }
+          }, 30);
+        }
+
+        // SONRA yakalanan sesi işle (yeni kayıtla PARALEL çalışır)
+        if (capturedChunks.length > 0) {
+          const audioBlob = new Blob(capturedChunks, { type: this.mediaRecorderMimeType });
           const capturedAt = Date.now();
-          audioChunks.length = 0;
-          if (shouldTranscribe && audioBlob.size > 1500) {
+          if (shouldTranscribe && audioBlob.size > 800) {
             this.enqueueGroqTranscription(audioBlob, sessionId, capturedAt);
           } else if (!shouldTranscribe) {
             const livePreview = document.getElementById('speech-live-preview');
             if (livePreview && this.isCurrentGroqSession(sessionId)) {
-              livePreview.textContent = 'Mikrofon kapatıldı veya kısa ses parçası filtrelendi.';
+              livePreview.textContent = 'Kısa ses parçası filtrelendi veya mikrofon kapatıldı.';
             }
-          }
-        }
-        if (this.isCurrentGroqSession(sessionId) && this.mediaRecorder === recorder) {
-          try {
-            if (recorder.state === 'inactive') {
-              recorder.start();
-            }
-          } catch (err) {
-            console.warn('Groq mediaRecorder yeniden başlatma hatası:', err);
           }
         }
       };
@@ -822,14 +1103,14 @@ class EOkulSpeadApp {
       const rms = Math.sqrt(sumSquares / bufferLength);
 
       const now = Date.now();
-      const speechStartThreshold = Math.min(22, Math.max(6, this.groqNoiseFloor * 2.2 + 3));
-      const speechContinueThreshold = Math.max(3, speechStartThreshold * 0.55);
+      const speechStartThreshold = Math.min(18, Math.max(5, this.groqNoiseFloor * 2.0 + 2));
+      const speechContinueThreshold = Math.max(2.5, speechStartThreshold * 0.5);
 
       if (!this.isSpeaking) {
         if (rms >= speechStartThreshold) {
           if (!this.groqSpeechStartCandidateAt) this.groqSpeechStartCandidateAt = now;
           // Kısa ama gerçek sayı parçalarını yakala; tek ölçümlük tıkırtıları ele.
-          if (now - this.groqSpeechStartCandidateAt >= 100) {
+          if (now - this.groqSpeechStartCandidateAt >= 70) {
             this.isSpeaking = true;
             this.speechStartTime = this.groqSpeechStartCandidateAt;
             this.lastSpeechTime = now;
@@ -843,7 +1124,7 @@ class EOkulSpeadApp {
           }
         } else {
           this.groqSpeechStartCandidateAt = 0;
-          this.groqNoiseFloor = Math.min(12, this.groqNoiseFloor * 0.92 + rms * 0.08);
+          this.groqNoiseFloor = Math.min(10, this.groqNoiseFloor * 0.95 + rms * 0.05);
         }
       } else if (rms >= speechContinueThreshold) {
         this.lastSpeechTime = now;
@@ -884,6 +1165,14 @@ class EOkulSpeadApp {
   isGarbageOrHallucination(text) {
     if (!text) return true;
     const lower = text.toLowerCase().trim();
+
+    // v7.0: Eğer metinde çıkartılabilir sayı varsa, ASLA reddetme.
+    // Eski kod "altı yüz" gibi meşru sayı ifadelerini "altyazı" ile
+    // karıştırarak tüm çıktıyı çöpe atıyordu.
+    const numbers = TurkishNumberParser.extractNumbers(text);
+    if (numbers && numbers.length > 0) return false;
+
+    // Yalnızca hiç sayı içermeyen saf gürültü/halüsinasyon metinleri reddet
     const badPatterns = [
       'altyazı', 'altyazi', 'teşekkür', 'tesekkur', 'izlediğiniz', 'izlediginiz',
       'abone', 'beğen', 'begen', 'videoyu', 'yorum', 'hoşça kal', 'hosca kal',
@@ -899,23 +1188,13 @@ class EOkulSpeadApp {
   validateGroqNumbers(numbers) {
     if (!Array.isArray(numbers) || numbers.length === 0) return false;
 
-    const rowSize = 2 + this.settings.questionCount;
-    let slotIndex = this.currentSlots.length % rowSize;
-
+    // v7.0: Yumuşatılmış validasyon — eski slot-bazlı kontrol, Whisper
+    // çoklu öğrenci döndürdüğünde modüler indeksi yanlış hesaplıyordu
+    // ve meşru sayıları reddediyordu. Artık yalnızca temel sağlık kontrolü
+    // yapılır; slot mantığı feedNumbers()'a bırakılır.
     for (const number of numbers) {
-      if (!Number.isSafeInteger(number)) return false;
-
-      if (slotIndex === 0) {
-        if (number < 1 || number > 99999) return false;
-      } else if (slotIndex === 1) {
-        if (number < 0 || number > this.settings.questionCount * 100) return false;
-      } else if (number < 0 || number > 100) {
-        return false;
-      }
-
-      slotIndex = (slotIndex + 1) % rowSize;
+      if (!Number.isSafeInteger(number) || number < 0) return false;
     }
-
     return true;
   }
 
@@ -938,19 +1217,43 @@ class EOkulSpeadApp {
       form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
       form.append('response_format', 'json');
 
-      const user = window.db?.auth?.currentUser;
-      if (!user) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
-      const idToken = await user.getIdToken();
-      if (!this.isCurrentGroqSession(sessionId)) return;
+      let resp = null;
 
-      const resp = await fetch('/api/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + idToken
-        },
-        body: form,
-        signal: controller.signal
-      });
+      // 1. Eğer doğrudan Groq API anahtarı girilmişse doğrudan Groq'a gönder
+      if (this.groqApiKey) {
+        resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + this.groqApiKey
+          },
+          body: form,
+          signal: controller.signal
+        });
+      } else {
+        // 2. Yoksa sunucu proxy'sini (/api/transcriptions) dene
+        const user = window.db?.auth?.currentUser;
+        const idToken = user ? await user.getIdToken() : '';
+        if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
+        if (!this.isCurrentGroqSession(sessionId)) return;
+
+        try {
+          resp = await fetch('/api/transcriptions', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + idToken
+            },
+            body: form,
+            signal: controller.signal
+          });
+        } catch (fetchErr) {
+          throw new Error('Whisper sunucu bağlantısı kurulamadı. Lütfen 🔑 butonuna basarak Groq API anahtarınızı girin.');
+        }
+
+        if (resp.status === 404) {
+          throw new Error('Yerel sunucu modunda API proxy bulunamadı. Lütfen 🔑 butonuna tıklayıp Groq API anahtarınızı (gsk_...) girin.');
+        }
+      }
+
       if (!this.isCurrentGroqSession(sessionId)) return;
 
       if (!resp.ok) {
@@ -970,26 +1273,31 @@ class EOkulSpeadApp {
           return;
         }
         if (livePreview) livePreview.textContent = text;
-        const numbers = TurkishNumberParser.extractNumbers(text);
-        if (numbers && numbers.length > 0) {
-          if (
-            this.currentSlots.length > 0 &&
-            this.groqSlotStartedAt &&
-            capturedAt - this.groqSlotStartedAt > this.groqSlotTimeoutMs
-          ) {
-            this.currentSlots = [];
-            this.groqSlotStartedAt = 0;
-            this.renderLiveSlots();
-            this.showToast('Eksik Whisper kaydı zaman aşımına uğradı ve temizlendi.', 'warning');
-          }
+        const parsed = TurkishNumberParser.parseSpokenStudent(text, this.settings.questionCount);
+        if (parsed && parsed.isLabeled) {
+          this.handleSpokenTranscript(text, true);
+        } else {
+          const numbers = TurkishNumberParser.extractNumbers(text);
+          if (numbers && numbers.length > 0) {
+            if (
+              this.currentSlots.length > 0 &&
+              this.groqSlotStartedAt &&
+              capturedAt - this.groqSlotStartedAt > this.groqSlotTimeoutMs
+            ) {
+              this.currentSlots = [];
+              this.groqSlotStartedAt = 0;
+              this.renderLiveSlots();
+              this.showToast('Eksik Whisper kaydı zaman aşımına uğradı ve temizlendi.', 'warning');
+            }
 
-          if (!this.validateGroqNumbers(numbers)) {
-            this.showToast('Bu ses parçasındaki sayı aralık dışı; önceki kutular korundu.', 'warning');
-            return;
-          }
+            if (!this.validateGroqNumbers(numbers)) {
+              this.showToast('Bu ses parçasındaki sayı aralık dışı; önceki kutular korundu.', 'warning');
+              return;
+            }
 
-          this.feedNumbers(numbers, capturedAt);
-          if (this.currentSlots.length === 0) this.groqSlotStartedAt = 0;
+            this.feedNumbers(numbers, capturedAt);
+            if (this.currentSlots.length === 0) this.groqSlotStartedAt = 0;
+          }
         }
       }
     } catch (err) {
@@ -1029,9 +1337,6 @@ class EOkulSpeadApp {
     this.isSpeaking = false;
     this.groqSpeechStartCandidateAt = 0;
     this.recordedAudioChunks = [];
-    // Yarım kalan veya gürültüden gelen sayılar sonraki dinleme oturumuna taşınmasın.
-    this.currentSlots = [];
-    this.groqSlotStartedAt = 0;
     this.renderLiveSlots();
     this.releaseGroqAudioStream();
   }
@@ -1636,9 +1941,15 @@ class EOkulSpeadApp {
         e.preventDefault();
         const input = document.getElementById('manual-input-text');
         if (input && input.value.trim()) {
-          const nums = TurkishNumberParser.extractNumbers(input.value.trim());
-          if (nums && nums.length > 0) {
-            this.feedNumbers(nums);
+          const val = input.value.trim();
+          const parsed = TurkishNumberParser.parseSpokenStudent(val, this.settings.questionCount);
+          if (parsed && parsed.isLabeled) {
+            this.handleSpokenTranscript(val, true);
+          } else {
+            const nums = TurkishNumberParser.extractNumbers(val);
+            if (nums && nums.length > 0) {
+              this.feedNumbers(nums);
+            }
           }
           input.value = '';
         }

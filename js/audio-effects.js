@@ -86,10 +86,56 @@ const SoundEffects = (() => {
     osc.stop(now + 0.25);
   }
 
+  // Ses kaydı başlatma tınısı (yükselen tatlı sinüs)
+  function playRecordStart() {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1);
+
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
+
+  // Ses kaydı tamamlama / durdurma tınısı (hafif kapanış sinüsü)
+  function playRecordStop() {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(659.25, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.1);
+
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.18);
+  }
+
   return {
     playSuccess,
     playWarning,
-    playError
+    playError,
+    playRecordStart,
+    playRecordStop
   };
 })();
 

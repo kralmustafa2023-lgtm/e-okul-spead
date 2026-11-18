@@ -136,20 +136,46 @@
             </div>
 
             <!-- CANLI SLOT OKUMA PANELİ (Aktif Okunan Öğrenci) -->
-            <div class="bg-black/40 border border-white/10 rounded-xl p-3">
-              <div class="flex items-center justify-between mb-2">
+            <div class="bg-black/40 border border-white/10 rounded-xl p-3.5 space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
                 <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                  <span>🎯</span> Şu An Okunan Öğrenci:
+                  <span class="text-base">🎯</span> Şu An Okunan Öğrenci:
                 </span>
-                <div class="flex gap-1.5">
-                  <button type="button" onclick="app.undoLastNumber()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700 transition">↩️ Geri Al</button>
-                  <button type="button" onclick="app.clearCurrentSlots()" class="text-[10px] bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 px-2 py-0.5 rounded border border-slate-700 transition">❌ Sıfırla</button>
+                
+                <!-- Ses Kayıt Butonu ve Kontroller -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <!-- Özel Ses Kayıt Butonu -->
+                  <button type="button" id="btn-slot-record" onclick="app.toggleVoiceRecording()" title="Öğrenci notlarını ses kaydıyla okumak için tıklayın"
+                    class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-rose-600/30 active:scale-95 group">
+                    <span id="slot-record-icon" class="text-xs">🔴</span>
+                    <span id="slot-record-text">Ses Kaydı Al</span>
+                    <span id="slot-record-timer" class="hidden font-mono bg-black/40 px-1.5 py-0.5 rounded text-[10px] border border-white/20">00:00</span>
+                  </button>
+
+                  <button type="button" onclick="app.commitManualSlots()" title="Mevcut kutulardaki puanları tabloya ekle" class="text-[10px] bg-indigo-700 hover:bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg border border-indigo-500/50 transition flex items-center gap-1 active:scale-95">
+                    <span>💾</span> Tabloya Ekle
+                  </button>
+                  <button type="button" onclick="app.undoLastNumber()" title="Son girilen puanı geri al" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg border border-slate-700 transition">↩️ Geri Al</button>
+                  <button type="button" onclick="app.clearCurrentSlots()" title="Aktif kutuları temizle" class="text-[10px] bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 px-2 py-1 rounded-lg border border-slate-700 transition">❌ Sıfırla</button>
                 </div>
               </div>
 
-              <!-- Dinamik Kutucuklar -->
+              <!-- Canlı Kayıt Bilgilendirme Rozeti -->
+              <div id="slot-recording-banner" class="hidden p-2 bg-rose-950/40 border border-rose-500/30 rounded-lg flex items-center justify-between text-xs text-rose-200 animate-pulse">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+                  <span>🎙️ <strong>Ses Kaydı Aktif:</strong> "Okul No 15 Toplam 60 S1 20 S2 20 S3 20" veya "15 60 20 20 20" şeklinde okuyun.</span>
+                </span>
+                <span class="text-[11px] font-mono text-rose-300">Konuşma bitince otomatik aktarılır veya butona tekrar basın</span>
+              </div>
+
+              <!-- Dinamik Kutucuklar (Tıklanabilir & Düzenlenebilir) -->
               <div id="live-slots-container" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
               </div>
+
+              <p class="text-[10px] text-slate-400 flex items-center gap-1 pt-0.5">
+                <span>💡</span> <em>İpucu:</em> Ses kaydı yaparken numaraları hem isimleriyle (örn: <strong>"Okul No 15, Toplam 60, S1 20, S2 20, S3 20"</strong>) hem de doğrudan sırayla (örn: <strong>"15 60 20 20 20"</strong>) söyleyebilirsiniz; sistem sayıları doğru kutulara otomatik yerleştirir. Kutucuklara tıklayarak değerleri elle de değiştirebilirsiniz.
+              </p>
             </div>
 
             <!-- Mantık Şeması -->
@@ -236,6 +262,8 @@
 
             <!-- Hızlı Butonlar -->
             <div class="flex flex-wrap gap-1.5 pt-1">
+              <button data-q-count="2" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">2 Soru</button>
+              <button data-q-count="3" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">3 Soru</button>
               <button data-q-count="4" class="px-2.5 py-1 text-xs rounded-md bg-indigo-600 text-white font-bold shadow-sm transition">4 Soru</button>
               <button data-q-count="5" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">5 Soru</button>
               <button data-q-count="6" class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-600 font-medium transition">6 Soru</button>
