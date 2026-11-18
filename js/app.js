@@ -8,7 +8,6 @@ class EOkulSpeadApp {
     this.students = [];
     this.settings = {
       questionCount: 4,
-      recordStudentCount: 6,
       examTitle: '1. Dönem 1. Yazılı',
       autoSort: true,
       soundEnabled: true,
@@ -100,14 +99,11 @@ class EOkulSpeadApp {
       if (savedSettings) {
         this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
       }
+      delete this.settings.recordStudentCount;
       const savedQuestionCount = Number(this.settings.questionCount);
       this.settings.questionCount = Number.isInteger(savedQuestionCount) && savedQuestionCount >= 1 && savedQuestionCount <= 30
         ? savedQuestionCount
         : 4;
-      const savedRecordStudentCount = Number(this.settings.recordStudentCount);
-      this.settings.recordStudentCount = Number.isInteger(savedRecordStudentCount) && savedRecordStudentCount >= 1 && savedRecordStudentCount <= 60
-        ? savedRecordStudentCount
-        : 6;
     } catch (e) {
       console.warn('LocalStorage yükleme hatası:', e);
     }
@@ -1522,20 +1518,10 @@ class EOkulSpeadApp {
       transcript,
       selectedQuestionCount
     );
-    const expectedStudentCount = Number(this.settings.recordStudentCount);
-    if (!Number.isInteger(expectedStudentCount) || expectedStudentCount < 1 || expectedStudentCount > 60) {
-      return { ok: false, message: 'Bu kayıttaki öğrenci sayısını 1 ile 60 arasında seçin.' };
+    if (parsedStudents.length === 0) {
+      return { ok: false, message: 'Kayıttan öğrenci grubu çıkarılamadı. Sayıları daha net söyleyip tekrar deneyin.' };
     }
-    if (parsedStudents.length < expectedStudentCount) {
-      const detectedStudentCount = parsedStudents.length;
-      return {
-        ok: false,
-        message: `Bu kayıt için ${expectedStudentCount} öğrenci bekleniyor ancak ${detectedStudentCount} grup bulundu. Hiçbiri eklenmedi; kaydı tekrar deneyin.`
-      };
-    }
-    const ignoredExtraGroupCount = parsedStudents.length - expectedStudentCount;
-    const expectedStudents = parsedStudents.slice(0, expectedStudentCount);
-    const labeledQuestionCounts = expectedStudents.map(parsed => {
+    const labeledQuestionCounts = parsedStudents.map(parsed => {
       if (!parsed.isLabeled || !parsed.questionScoresMap) return null;
       const questionIndices = Object.keys(parsed.questionScoresMap)
         .map(Number)
@@ -1552,59 +1538,70 @@ class EOkulSpeadApp {
       ? inferredQuestionCount
       : this.settings.questionCount;
 
-    const seenStudentNumbers = new Set();
-    const students = [];
-    for (const parsed of expectedStudents) {
+    const groupsByStudentNumber = new Map();
+    for (const parsed of parsedStudents) {
       if (!Number.isSafeInteger(parsed.studentNo) || parsed.studentNo <= 0) {
         return { ok: false, message: 'Öğrenci numarası tanınmayan bir grup var. Kaydı tekrar deneyin.' };
       }
-      if (!Number.isSafeInteger(parsed.statedTotal) || parsed.statedTotal < 0) {
-        return { ok: false, message: `Öğrenci ${parsed.studentNo} için toplam puan tanınmadı.` };
-      }
-      if (seenStudentNumbers.has(parsed.studentNo)) {
-        return { ok: false, message: `Öğrenci ${parsed.studentNo} aynı kayıtta birden fazla kez bulundu.` };
-      }
-      seenStudentNumbers.add(parsed.studentNo);
+      const sameNumberGroups = groupsByStudentNumber.get(parsed.studentNo) || [];
+      sameNumberGroups.push(parsed);
+      groupsByStudentNumber.set(parsed.studentNo, sameNumberGroups);
+    }
 
-      const questionScores = parsed.isLabeled
-        ? Array.from({ length: questionCount }, (_, index) => parsed.questionScoresMap?.[index + 1])
-        : (parsed.questionScores || []).slice(0, questionCount);
-      if (
-        questionScores.length !== questionCount ||
-        questionScores.some(score => !Number.isSafeInteger(score) || score < 0)
-      ) {
-        return {
-          ok: false,
-          message: `Öğrenci ${parsed.studentNo} için soru puanları eksik. Soru sayısını ayarlayın veya puanları daha net söyleyin.`
-        };
-      }
-
-      const calculatedTotal = questionScores.reduce((sum, score) => sum + score, 0);
-      const totalsMatch = parsed.statedTotal === calculatedTotal;
-      students.push({
-        rawSpeech: parsed.rawText || transcript,
-        entry: {
-          studentNo: parsed.studentNo,
-          statedTotal: parsed.statedTotal,
-          questionScores,
-          calculatedTotal,
-          totalsMatch,
-          hasExpectedQuestions: true,
-          status: totalsMatch ? 'PERFECT' : 'TOTAL_MISMATCH'
+    let duplicateGroupsIgnored = 0;
+    const students = [];
+    for (const [studentNo, sameNumberGroups] of groupsByStudentNumber) {
+      const candidates = [];
+      let invalidGroupMessage = '';
+      for (const parsed of sameNumberGroups) {
+        if (!Number.isSafeInteger(parsed.statedTotal) || parsed.statedTotal < 0) {
+          invalidGroupMessage ||= `Öğrenci ${studentNo} için toplam puan tanınmadı.`;
+          continue;
         }
-      });
+
+        const questionScores = parsed.isLabeled
+          ? Array.from({ length: questionCount }, (_, index) => parsed.questionScoresMap?.[index + 1])
+          : (parsed.questionScores || []).slice(0, questionCount);
+        if (
+          questionScores.length !== questionCount ||
+          questionScores.some(score => !Number.isSafeInteger(score) || score < 0)
+        ) {
+          invalidGroupMessage ||= `Öğrenci ${studentNo} için soru puanları eksik. Soru sayısını ayarlayın veya puanları daha net söyleyin.`;
+          continue;
+        }
+
+        const calculatedTotal = questionScores.reduce((sum, score) => sum + score, 0);
+        const totalsMatch = parsed.statedTotal === calculatedTotal;
+        candidates.push({
+          rawSpeech: parsed.rawText || transcript,
+          totalDifference: Math.abs(parsed.statedTotal - calculatedTotal),
+          entry: {
+            studentNo,
+            statedTotal: parsed.statedTotal,
+            questionScores,
+            calculatedTotal,
+            totalsMatch,
+            hasExpectedQuestions: true,
+            status: totalsMatch ? 'PERFECT' : 'TOTAL_MISMATCH'
+          }
+        });
+      }
+
+      if (candidates.length === 0) {
+        return { ok: false, message: invalidGroupMessage || `Öğrenci ${studentNo} için puanlar okunamadı.` };
+      }
+
+      // Whisper aynı numarayı birden fazla grup olarak döndürürse, kullanılabilir
+      // grupları önce toplamı tutana, sonra toplam farkı en küçük olana göre seç.
+      candidates.sort((a, b) => Number(b.entry.totalsMatch) - Number(a.entry.totalsMatch) || a.totalDifference - b.totalDifference);
+      students.push(candidates[0]);
+      duplicateGroupsIgnored += sameNumberGroups.length - 1;
     }
 
     if (canInferQuestionCount && inferredQuestionCount !== this.settings.questionCount) {
       this.updateQuestionCount(inferredQuestionCount);
     }
-    if (ignoredExtraGroupCount > 0 && students.some(student => !student.entry.totalsMatch)) {
-      return {
-        ok: false,
-        message: 'Whisper beklenenden fazla grup buldu ve puan toplamları uyuşmuyor. Yanlış kayıt oluşmaması için hiçbir öğrenci eklenmedi; kaydı tekrar deneyin.'
-      };
-    }
-    return { ok: true, students, ignoredExtraGroupCount };
+    return { ok: true, students, duplicateGroupsIgnored };
   }
 
   async transcribeOneShotRecording(audioBlob) {
@@ -1678,17 +1675,17 @@ class EOkulSpeadApp {
 
       const mismatchedTotals = parsed.students.filter(student => !student.entry.totalsMatch).length;
       finalPreview = `${parsed.students.length} öğrenci kaydedildi.`;
-      if (parsed.ignoredExtraGroupCount > 0) {
-        finalPreview += ` Whisper'ın bulduğu ${parsed.ignoredExtraGroupCount} fazla grup eklenmedi.`;
+      if (parsed.duplicateGroupsIgnored > 0) {
+        finalPreview += ` ${parsed.duplicateGroupsIgnored} tekrarlanan grup yok sayıldı.`;
       }
       if (mismatchedTotals > 0) {
         finalPreview += ` ${mismatchedTotals} öğrencide söylenen toplam ile soru puanları uyuşmuyor; tabloyu kontrol edin.`;
-        const extraGroupMessage = parsed.ignoredExtraGroupCount > 0
-          ? ` ${parsed.ignoredExtraGroupCount} fazla grup eklenmedi.`
+        const duplicateGroupMessage = parsed.duplicateGroupsIgnored > 0
+          ? ` ${parsed.duplicateGroupsIgnored} tekrarlanan grup yok sayıldı.`
           : '';
-        this.showToast(`${parsed.students.length} öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.${extraGroupMessage}`, 'warning');
-      } else if (parsed.ignoredExtraGroupCount > 0) {
-        this.showToast(`${parsed.students.length} öğrenci kaydedildi. ${parsed.ignoredExtraGroupCount} fazla grup eklenmedi.`, 'warning');
+        this.showToast(`${parsed.students.length} öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.${duplicateGroupMessage}`, 'warning');
+      } else if (parsed.duplicateGroupsIgnored > 0) {
+        this.showToast(`${parsed.students.length} öğrenci kaydedildi. ${parsed.duplicateGroupsIgnored} tekrarlanan grup yok sayıldı.`, 'warning');
       } else {
         this.showToast(`${parsed.students.length} öğrenci başarıyla tabloya eklendi veya güncellendi.`, 'success');
       }
@@ -1785,7 +1782,7 @@ class EOkulSpeadApp {
   getVoiceScoreFormatHint() {
     const questionCount = this.settings.questionCount;
     const valuesPerStudent = questionCount + 2;
-    return `Etiket söylemeyin. Bu kayıtta ${this.settings.recordStudentCount} öğrenci okuyun. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin; her ${valuesPerStudent} sayı bir öğrencidir.`;
+    return `Etiket söylemeyin. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin. Her ${valuesPerStudent} sayı bir öğrencidir; tamamlanan gruplar eklenir.`;
   }
 
   addOrUpdateStudent(entry, rawSpeech = '', options = {}) {
@@ -2140,26 +2137,6 @@ class EOkulSpeadApp {
     this.showToast(`Sınav soru sayısı ${val} olarak ayarlandı.`, 'info');
   }
 
-  updateRecordStudentCount(newCount) {
-    const val = Number(newCount);
-    const countInput = document.getElementById('setting-record-student-count');
-    if (!Number.isInteger(val) || val < 1 || val > 60) {
-      if (countInput) countInput.value = String(this.settings.recordStudentCount);
-      this.showToast('Kayıt başına öğrenci sayısı 1 ile 60 arasında tam sayı olmalıdır.', 'warning');
-      return;
-    }
-    if (this.isListening || this.isTranscribing || this.isStartingOneShotRecording) {
-      if (countInput) countInput.value = String(this.settings.recordStudentCount);
-      this.showToast('Öğrenci sayısını kayıt başlamadan önce değiştirin.', 'warning');
-      return;
-    }
-
-    this.settings.recordStudentCount = val;
-    this.saveToStorage();
-    this.renderSettings();
-    this.showToast(`Bu kayıtta ${val} öğrenci bekleniyor.`, 'info');
-  }
-
   updateBookmarkletLink() {
     const linkEl = document.getElementById('bookmarklet-drag-link');
     const modalLinkEl = document.getElementById('bookmarklet-modal-drag-link');
@@ -2203,9 +2180,6 @@ class EOkulSpeadApp {
   renderSettings() {
     const qCountInput = document.getElementById('setting-question-count');
     if (qCountInput) qCountInput.value = this.settings.questionCount;
-
-    const recordStudentCountInput = document.getElementById('setting-record-student-count');
-    if (recordStudentCountInput) recordStudentCountInput.value = this.settings.recordStudentCount;
 
     const currentQBadge = document.getElementById('current-q-badge');
     if (currentQBadge) currentQBadge.textContent = `${this.settings.questionCount} Soru`;
@@ -2308,11 +2282,6 @@ class EOkulSpeadApp {
     const qCountInput = document.getElementById('setting-question-count');
     if (qCountInput) {
       qCountInput.addEventListener('change', (e) => this.updateQuestionCount(e.target.value));
-    }
-
-    const recordStudentCountInput = document.getElementById('setting-record-student-count');
-    if (recordStudentCountInput) {
-      recordStudentCountInput.addEventListener('change', (e) => this.updateRecordStudentCount(e.target.value));
     }
 
     document.querySelectorAll('[data-q-count]').forEach(btn => {
