@@ -42,7 +42,6 @@ class EOkulSpeadApp {
 
     // SES MOTORU: 'groq' (Groq Whisper-large-v3) veya 'web' (Tarayıcı Web Speech API)
     this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
-    this.groqApiKey = localStorage.getItem('groq_api_key') || localStorage.getItem('eokul_spead_groq_api_key') || '';
     this.groqModel = 'whisper-large-v3';
     this.oneShotRecorder = null;
     this.oneShotChunks = [];
@@ -928,30 +927,6 @@ class EOkulSpeadApp {
     }
   }
 
-  configureGroqApiKey() {
-    const currentKey = this.groqApiKey ? this.groqApiKey.substring(0, 8) + '...' : '';
-    const promptMsg = this.groqApiKey
-      ? `Mevcut Groq API Anahtarı: ${currentKey}\nYeni anahtar girin (veya sunucu moduna dönmek için boş bırakın):`
-      : 'Whisper AI için Groq API anahtarınızı (gsk_...) girin:\n(Sunucu üzerinden çalışıyorsa boş bırakabilirsiniz)';
-    const entered = window.prompt(promptMsg, this.groqApiKey || '');
-    if (entered === null) return false;
-    const cleanKey = entered.trim();
-    if (!cleanKey) {
-      this.groqApiKey = '';
-      localStorage.removeItem('groq_api_key');
-      this.showToast('Özel API anahtarı temizlendi. Sunucu proxy modu aktif.', 'info');
-      return true;
-    }
-    if (!cleanKey.startsWith('gsk_') || cleanKey.length < 20) {
-      this.showToast('Geçersiz Groq API anahtarı! (gsk_ ile başlamalıdır)', 'warning');
-      return false;
-    }
-    this.groqApiKey = cleanKey;
-    localStorage.setItem('groq_api_key', cleanKey);
-    this.showToast('Groq API anahtarı bu tarayıcıya kaydedildi!', 'success');
-    return true;
-  }
-
   updateEngineUI() {
     const groqBtn = document.getElementById('btn-engine-groq');
     const webBtn = document.getElementById('btn-engine-web');
@@ -1233,19 +1208,12 @@ class EOkulSpeadApp {
       return form;
     };
 
-    let url;
-    let headers;
-    if (this.groqApiKey) {
-      url = 'https://api.groq.com/openai/v1/audio/transcriptions';
-      headers = { 'Authorization': 'Bearer ' + this.groqApiKey };
-    } else {
-      const user = window.db?.auth?.currentUser;
-      const idToken = user ? await user.getIdToken() : '';
-      if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
-      if (!shouldContinue()) return '';
-      url = '/api/transcriptions';
-      headers = { 'Authorization': 'Bearer ' + idToken };
-    }
+    const user = window.db?.auth?.currentUser;
+    const idToken = user ? await user.getIdToken() : '';
+    if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
+    if (!shouldContinue()) return '';
+    const url = '/api/transcriptions';
+    const headers = { 'Authorization': 'Bearer ' + idToken };
 
     const maxAttempts = 2;
     let response;
