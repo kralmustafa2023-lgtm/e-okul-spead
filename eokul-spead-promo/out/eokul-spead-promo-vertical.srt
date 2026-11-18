@@ -1,0 +1,39 @@
+1
+00:00:00,350 --> 00:00:03,174
+Sınav notlarını tek tek girmek
+hâlâ zaman alıyor mu?
+
+2
+00:00:04,263 --> 00:00:09,256
+e-Okul Spead v7.0 AI
+Not girişinde sesli yardımcı.
+
+3
+00:00:10,345 --> 00:00:16,972
+Numarayı ve soru puanlarını söyleyin.
+Örnek: 42 • Soru 1: 15 • Soru 2: 20.
+
+4
+00:00:18,060 --> 00:00:22,837
+Konuşma metne dönüşür.
+Satırları siz gözden geçirirsiniz.
+
+5
+00:00:23,925 --> 00:00:30,200
+Toplamı kontrol edin.
+Düzeltmeyi siz onaylayın.
+
+6
+00:00:31,288 --> 00:00:37,093
+Yer imiyle aktarım akışına geçin.
+Ekran kurgusal ve temsildir.
+
+7
+00:00:38,182 --> 00:00:44,431
+Konuşun. Gözden geçirin.
+Aktarım adımını siz başlatın.
+
+8
+00:00:45,520 --> 00:00:52,480
+Notları konuşun.
+İş akışınızı sadeleştirin.

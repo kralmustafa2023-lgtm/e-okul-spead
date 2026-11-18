@@ -1,0 +1,34 @@
+[
+  {
+    "text": "Sınav notlarını tek tek girmek zaman alıyor mu?",
+    "caption": "Sınav notlarını tek tek girmek\nhâlâ zaman alıyor mu?"
+  },
+  {
+    "text": "e-Okul Spead, öğretmenlerin not giriş akışını sesle kolaylaştırmaya yardımcı olur.",
+    "caption": "e-Okul Spead v7.0 AI\nNot girişinde sesli yardımcı."
+  },
+  {
+    "text": "Numarayı söyleyin. Sonra puanları sırayla okuyun: kırk iki, soru bir on beş, soru iki yirmi.",
+    "caption": "Numarayı ve soru puanlarını söyleyin.\nÖrnek: 42 • Soru 1: 15 • Soru 2: 20."
+  },
+  {
+    "text": "Konuşma metne dönüşür. Öğrenci kaydını ve puan satırlarını gözden geçirin.",
+    "caption": "Konuşma metne dönüşür.\nSatırları siz gözden geçirirsiniz."
+  },
+  {
+    "text": "Toplamı kontrol edin. On beş artı yirmi, otuz beş. Gerekli düzeltmeyi siz onaylayın.",
+    "caption": "Toplamı kontrol edin.\nDüzeltmeyi siz onaylayın."
+  },
+  {
+    "text": "Hazır olduğunuzda tarayıcı yer imiyle notları aktarım akışına taşıyın. Tablo temsili bir örnektir.",
+    "caption": "Yer imiyle aktarım akışına geçin.\nEkran kurgusal ve temsildir."
+  },
+  {
+    "text": "Konuşun, gözden geçirin, sonra aktarım adımına geçin. Veriler bu örnek için kurgulanmıştır.",
+    "caption": "Konuşun. Gözden geçirin.\nAktarım adımını siz başlatın."
+  },
+  {
+    "text": "e-Okul Spead v7.0 AI. Notları konuşun. İş akışınızı sadeleştirin. Şimdi keşfedin.",
+    "caption": "Notları konuşun.\nİş akışınızı sadeleştirin."
+  }
+]

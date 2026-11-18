@@ -1,0 +1,2 @@
+Konuşma metne dönüşür.
+Satırları siz gözden geçirirsiniz.

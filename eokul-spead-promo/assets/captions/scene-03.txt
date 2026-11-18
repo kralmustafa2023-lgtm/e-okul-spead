@@ -1,0 +1,2 @@
+Numarayı ve soru puanlarını söyleyin.
+Örnek: 42 • Soru 1: 15 • Soru 2: 20.
