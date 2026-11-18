@@ -327,7 +327,7 @@ const TurkishNumberParser = (() => {
     const lower = rawText.toLocaleLowerCase('tr-TR').trim();
 
     // 1. Etiketli öğrenci başlangıç kelimeleri var mı?
-    const hasLabels = /(?:okul|öğrenci|ogrenci|numara|\bno\s+\d)/i.test(lower);
+    const hasLabels = /(?:okul\s*(?:no|numaras[ıi])|(?:öğrenci|ogrenci)\s*(?:no|numaras[ıi]|\d+)|numara(?:s[ıi])?\s+\d|\bno\s+\d)/i.test(lower);
     const students = [];
 
     if (hasLabels) {

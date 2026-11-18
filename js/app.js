@@ -1654,16 +1654,17 @@ class EOkulSpeadApp {
       let text = await this.requestWhisperTranscription(
         audioBlob,
         controller.signal,
-        () => transcriptionId === this.oneShotTranscriptionId
+        () => transcriptionId === this.oneShotTranscriptionId,
+        'none'
       );
       if (transcriptionId !== this.oneShotTranscriptionId) return;
       if (!text || TurkishNumberParser.extractNumbers(text).length === 0) {
-        console.info('Whisper sayıları tanıyamadı; kısa bağlamsız tekrar deneniyor.');
+        console.info('Whisper sayıları tanıyamadı; kısa sınav bağlamıyla tekrar deneniyor.');
         const fallbackText = await this.requestWhisperTranscription(
           audioBlob,
           controller.signal,
           () => transcriptionId === this.oneShotTranscriptionId,
-          'none'
+          'context'
         );
         if (fallbackText) text = fallbackText;
         if (transcriptionId !== this.oneShotTranscriptionId) return;
