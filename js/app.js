@@ -8,6 +8,7 @@ class EOkulSpeadApp {
     this.students = [];
     this.settings = {
       questionCount: 4,
+      recordStudentCount: 6,
       examTitle: '1. Dönem 1. Yazılı',
       autoSort: true,
       soundEnabled: true,
@@ -104,6 +105,10 @@ class EOkulSpeadApp {
       this.settings.questionCount = Number.isInteger(savedQuestionCount) && savedQuestionCount >= 1 && savedQuestionCount <= 30
         ? savedQuestionCount
         : 4;
+      const savedRecordStudentCount = Number(this.settings.recordStudentCount);
+      this.settings.recordStudentCount = Number.isInteger(savedRecordStudentCount) && savedRecordStudentCount >= 1 && savedRecordStudentCount <= 60
+        ? savedRecordStudentCount
+        : 6;
     } catch (e) {
       console.warn('LocalStorage yükleme hatası:', e);
     }
@@ -1223,7 +1228,7 @@ class EOkulSpeadApp {
       form.append('temperature', '0');
       form.append('language', 'tr');
       if (promptMode === 'context') {
-        form.append('prompt', `Türkçe sınav notu diktesi; öğrenci numarası, toplam puan ve her öğrenci için ${questionCount} soru puanı.`);
+        form.append('prompt', `Türkçe sınav notu diktesi; ${this.settings.recordStudentCount} öğrenci, okul numaraları, toplam puanlar ve ${questionCount} soru puanları.`);
       }
       form.append('response_format', 'json');
       return form;
@@ -1550,13 +1555,16 @@ class EOkulSpeadApp {
       transcript,
       selectedQuestionCount
     );
-    if (parsedStudents.length === 0) {
+    const expectedStudentCount = Number(this.settings.recordStudentCount);
+    if (!Number.isInteger(expectedStudentCount) || expectedStudentCount < 1 || expectedStudentCount > 60) {
+      return { ok: false, message: 'Bu kayıttaki öğrenci sayısını 1 ile 60 arasında seçin.' };
+    }
+    if (parsedStudents.length !== expectedStudentCount) {
       return {
         ok: false,
-        message: 'Kayıttan öğrenci grubu çıkarılamadı. Lütfen soru sayısını ve konuşulan sayıları kontrol edip tekrar deneyin.'
+        message: `Bu kayıtta ${expectedStudentCount} öğrenci bekleniyordu, ${parsedStudents.length} grup bulundu. Hiçbiri eklenmedi; kaydı tekrar deneyin.`
       };
     }
-
     const labeledQuestionCounts = parsedStudents.map(parsed => {
       if (!parsed.isLabeled || !parsed.questionScoresMap) return null;
       const questionIndices = Object.keys(parsed.questionScoresMap)
@@ -1792,7 +1800,7 @@ class EOkulSpeadApp {
   getVoiceScoreFormatHint() {
     const questionCount = this.settings.questionCount;
     const valuesPerStudent = questionCount + 2;
-    return `Etiket söylemeyin. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin. Her ${valuesPerStudent} sayı bir öğrenciyi oluşturur; istediğiniz kadar tam grup okuyabilirsiniz.`;
+    return `Etiket söylemeyin. Bu kayıtta ${this.settings.recordStudentCount} öğrenci okuyun. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin; her ${valuesPerStudent} sayı bir öğrencidir.`;
   }
 
   addOrUpdateStudent(entry, rawSpeech = '', options = {}) {
@@ -2147,6 +2155,26 @@ class EOkulSpeadApp {
     this.showToast(`Sınav soru sayısı ${val} olarak ayarlandı.`, 'info');
   }
 
+  updateRecordStudentCount(newCount) {
+    const val = Number(newCount);
+    const countInput = document.getElementById('setting-record-student-count');
+    if (!Number.isInteger(val) || val < 1 || val > 60) {
+      if (countInput) countInput.value = String(this.settings.recordStudentCount);
+      this.showToast('Kayıt başına öğrenci sayısı 1 ile 60 arasında tam sayı olmalıdır.', 'warning');
+      return;
+    }
+    if (this.isListening || this.isTranscribing || this.isStartingOneShotRecording) {
+      if (countInput) countInput.value = String(this.settings.recordStudentCount);
+      this.showToast('Öğrenci sayısını kayıt başlamadan önce değiştirin.', 'warning');
+      return;
+    }
+
+    this.settings.recordStudentCount = val;
+    this.saveToStorage();
+    this.renderSettings();
+    this.showToast(`Bu kayıtta ${val} öğrenci bekleniyor.`, 'info');
+  }
+
   updateBookmarkletLink() {
     const linkEl = document.getElementById('bookmarklet-drag-link');
     const modalLinkEl = document.getElementById('bookmarklet-modal-drag-link');
@@ -2190,6 +2218,9 @@ class EOkulSpeadApp {
   renderSettings() {
     const qCountInput = document.getElementById('setting-question-count');
     if (qCountInput) qCountInput.value = this.settings.questionCount;
+
+    const recordStudentCountInput = document.getElementById('setting-record-student-count');
+    if (recordStudentCountInput) recordStudentCountInput.value = this.settings.recordStudentCount;
 
     const currentQBadge = document.getElementById('current-q-badge');
     if (currentQBadge) currentQBadge.textContent = `${this.settings.questionCount} Soru`;
@@ -2292,6 +2323,11 @@ class EOkulSpeadApp {
     const qCountInput = document.getElementById('setting-question-count');
     if (qCountInput) {
       qCountInput.addEventListener('change', (e) => this.updateQuestionCount(e.target.value));
+    }
+
+    const recordStudentCountInput = document.getElementById('setting-record-student-count');
+    if (recordStudentCountInput) {
+      recordStudentCountInput.addEventListener('change', (e) => this.updateRecordStudentCount(e.target.value));
     }
 
     document.querySelectorAll('[data-q-count]').forEach(btn => {
