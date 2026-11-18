@@ -127,6 +127,9 @@
               <p id="speech-live-preview" class="text-sm text-slate-300 min-h-[1.75rem] flex items-center justify-center sm:justify-start" aria-live="polite">
                 Kaydı başlatın, bir öğrencinin okul numarasını, toplam puanını ve soru puanlarını söyleyin. Kaydı durdurunca Whisper metne çevirip öğrenciyi tabloya ekler.
               </p>
+              <button id="retry-whisper-btn" type="button" onclick="app.retryFailedWhisperRecording()" class="hidden min-h-11 px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-300/30 rounded-lg text-sm font-semibold text-amber-100 transition" aria-live="polite">
+                Son kaydı Whisper’a tekrar gönder
+              </button>
               
               <!-- Canlı Mikrofon Ses Seviyesi Barı -->
               <div class="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden border border-white/5">

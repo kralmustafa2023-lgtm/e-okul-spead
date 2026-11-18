@@ -51,6 +51,7 @@ class EOkulSpeadApp {
     this.oneShotMimeType = 'audio/webm';
     this.isStartingOneShotRecording = false;
     this.oneShotTranscriptionId = 0;
+    this.retryWhisperAudioBlob = null;
 
     // Groq MediaRecorder ve VAD durumu
     this.mediaRecorder = null;
@@ -1210,48 +1211,75 @@ class EOkulSpeadApp {
     if (!shouldContinue()) return '';
     const mimeType = audioBlob.type || this.mediaRecorderMimeType || 'audio/webm';
     const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
-    const form = new FormData();
-    form.append('file', audioBlob, `audio.${ext}`);
-    form.append('model', this.groqModel);
-    form.append('temperature', '0');
-    form.append('language', 'tr');
-    form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
-    form.append('response_format', 'json');
+    const createFormData = () => {
+      const form = new FormData();
+      form.append('file', audioBlob, `audio.${ext}`);
+      form.append('model', this.groqModel);
+      form.append('temperature', '0');
+      form.append('language', 'tr');
+      form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
+      form.append('response_format', 'json');
+      return form;
+    };
 
-    let response;
+    let url;
+    let headers;
     if (this.groqApiKey) {
-      response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + this.groqApiKey },
-        body: form,
-        signal
-      });
+      url = 'https://api.groq.com/openai/v1/audio/transcriptions';
+      headers = { 'Authorization': 'Bearer ' + this.groqApiKey };
     } else {
       const user = window.db?.auth?.currentUser;
       const idToken = user ? await user.getIdToken() : '';
       if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
       if (!shouldContinue()) return '';
+      url = '/api/transcriptions';
+      headers = { 'Authorization': 'Bearer ' + idToken };
+    }
 
+    const maxAttempts = 2;
+    let response;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (!shouldContinue()) return '';
       try {
-        response = await fetch('/api/transcriptions', {
+        response = await fetch(url, {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken },
-          body: form,
+          headers,
+          body: createFormData(),
           signal
         });
       } catch (fetchError) {
-        throw new Error('Whisper sunucu bağlantısı kurulamadı. Lütfen 🔑 ayarlarını kontrol edin.');
+        if (signal?.aborted || fetchError.name === 'AbortError') throw fetchError;
+        if (!shouldContinue()) return '';
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 700 * attempt));
+          continue;
+        }
+
+        const details = fetchError.message || fetchError.name || 'bağlantı hatası';
+        const networkError = new Error(`Whisper sunucu bağlantısı kurulamadı (${details}).`);
+        networkError.code = 'WHISPER_NETWORK_ERROR';
+        throw networkError;
       }
 
-      if (response.status === 404) {
+      if (url === '/api/transcriptions' && response.status === 404) {
         throw new Error('Whisper sunucu uç noktası bulunamadı. Projeyi Vercel üzerinden açın.');
       }
+
+      if ((response.status === 429 || response.status >= 500) && attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 700 * attempt));
+        continue;
+      }
+      break;
     }
 
     if (!shouldContinue()) return '';
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      const requestError = new Error(errorData.error?.message || `HTTP ${response.status}`);
+      if (response.status === 429 || response.status >= 500) {
+        requestError.code = 'WHISPER_TEMPORARY_ERROR';
+      }
+      throw requestError;
     }
 
     const data = await response.json();
@@ -1430,6 +1458,9 @@ class EOkulSpeadApp {
 
       recorder.start();
       this.isListening = true;
+      this.retryWhisperAudioBlob = null;
+      const retryButton = document.getElementById('retry-whisper-btn');
+      if (retryButton) retryButton.classList.add('hidden');
       this.updateMicUI(true);
       this.oneShotTimer = setInterval(() => {
         this.oneShotSeconds++;
@@ -1508,6 +1539,8 @@ class EOkulSpeadApp {
     const controller = new AbortController();
     this.activeTranscriptionController = controller;
     this.isTranscribing = true;
+    const retryButton = document.getElementById('retry-whisper-btn');
+    if (retryButton) retryButton.classList.add('hidden');
     this.updateMicUI(false, true, 'Whisper kaydı metne çeviriyor…');
     const livePreview = document.getElementById('speech-live-preview');
     let finalPreview = '';
@@ -1524,6 +1557,7 @@ class EOkulSpeadApp {
         this.showToast('Ses kaydında konuşma algılanamadı.', 'warning');
         return;
       }
+      this.retryWhisperAudioBlob = null;
       if (this.isGarbageOrHallucination(text)) {
         finalPreview = 'Whisper geçerli bir sayı algılayamadı. Kaydı tekrar deneyin.';
         this.showToast('Kayıtta öğrenci numarası veya puan bulunamadı.', 'warning');
@@ -1553,7 +1587,9 @@ class EOkulSpeadApp {
     } catch (error) {
       if (error.name === 'AbortError') return;
       console.error('Whisper ses kaydı çözümlenemedi:', error);
-      finalPreview = 'Whisper kaydı çözümlenemedi. Bağlantıyı kontrol edip tekrar deneyin.';
+      this.retryWhisperAudioBlob = audioBlob;
+      if (retryButton) retryButton.classList.remove('hidden');
+      finalPreview = `Whisper kaydı gönderilemedi; ses kaydı bu sayfada saklandı. Tekrar dene düğmesine basın. (${error.message})`;
       this.showToast('Whisper hatası: ' + error.message, 'error');
     } finally {
       if (this.activeTranscriptionController === controller) {
@@ -1565,6 +1601,13 @@ class EOkulSpeadApp {
         if (livePreview && finalPreview) livePreview.textContent = finalPreview;
       }
     }
+  }
+
+  retryFailedWhisperRecording() {
+    if (!this.retryWhisperAudioBlob || this.isTranscribing || this.isListening || this.isStartingOneShotRecording) return;
+    const audioBlob = this.retryWhisperAudioBlob;
+    this.retryWhisperAudioBlob = null;
+    this.transcribeOneShotRecording(audioBlob);
   }
 
   updateMicUI(active, processing = false, statusMessage = '') {
