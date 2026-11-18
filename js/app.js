@@ -1211,13 +1211,15 @@ class EOkulSpeadApp {
     if (!shouldContinue()) return '';
     const mimeType = audioBlob.type || this.mediaRecorderMimeType || 'audio/webm';
     const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+    const questionCount = this.settings.questionCount;
+    const valuesPerStudent = questionCount + 2;
     const createFormData = () => {
       const form = new FormData();
       form.append('file', audioBlob, `audio.${ext}`);
       form.append('model', this.groqModel);
       form.append('temperature', '0');
       form.append('language', 'tr');
-      form.append('prompt', 'Türkçe sınav notu diktesi. Tek kayıtta üç öğrenci sırayla söylenir. Her öğrencide okul numarası, toplam puan ve soru puanları bulunur. Sayıları ve öğrenci sırasını aynen koru; kayıtları atlama.');
+      form.append('prompt', `Türkçe sınav puanı diktesi. Tek kayıtta tam 3 öğrenci vardır. Konuşmacı etiket kullanmadan yalnızca sayıları sırayla okur. Her öğrenci için sıra: okul numarası, toplam puan, ardından ${questionCount} soru puanı; her öğrenci ${valuesPerStudent} sayıdan oluşur. Söylenen bütün sayıları rakam olarak ve aynı sırayla yaz; sayı ekleme, çıkarma veya sıralarını değiştirme.`);
       form.append('response_format', 'json');
       return form;
     };
@@ -1739,7 +1741,7 @@ class EOkulSpeadApp {
       if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
       if (micPulse) micPulse.classList.remove('hidden');
       if (micTimer) micTimer.classList.remove('hidden');
-      if (livePreview) livePreview.textContent = 'Üç öğrencinin okul numarasını, toplam puanını ve soru puanlarını sırayla söyleyin.';
+      if (livePreview) livePreview.textContent = this.getVoiceScoreFormatHint();
     } else {
       if (micBtn) {
         micBtn.disabled = false;
@@ -1758,8 +1760,18 @@ class EOkulSpeadApp {
         micTimer.classList.add('hidden');
         micTimer.textContent = '00:00';
       }
-      if (livePreview) livePreview.textContent = 'Kaydı başlatın ve üç öğrenciyi sırayla söyleyin. Her biri için okul numarası, toplam puan ve soru puanlarını verin; Whisper üçünü de tabloya ekler.';
+      if (livePreview) livePreview.textContent = `Kaydı başlatın. ${this.getVoiceScoreFormatHint()} Whisper üç öğrenciyi tabloya ekler.`;
     }
+  }
+
+  getVoiceScoreFormatHint() {
+    const questionCount = this.settings.questionCount;
+    const valuesPerStudent = questionCount + 2;
+    const totalValues = valuesPerStudent * 3;
+    const threeQuestionExample = questionCount === 3
+      ? ' Yani toplam 15 sayı: ilk 5 birinci, sonraki 5 ikinci, son 5 üçüncü öğrenci.'
+      : '';
+    return `Etiket söylemeyin. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin. Öğrenci başına ${valuesPerStudent} sayı; 3 öğrenci için toplam ${totalValues} sayı.${threeQuestionExample}`;
   }
 
   addOrUpdateStudent(entry, rawSpeech = '', options = {}) {
@@ -2091,6 +2103,9 @@ class EOkulSpeadApp {
     this.currentSlots = [];
     this.groqSlotStartedAt = 0;
 
+    const formatHint = document.getElementById('spoken-record-format-hint');
+    if (formatHint) formatHint.textContent = this.getVoiceScoreFormatHint();
+
     // Girmeyen öğrencilerin 0 puanlı dizi boyutunu yeni soru sayısına uyarla
     this.students.forEach(s => {
       if (s.isAbsent) {
@@ -2158,6 +2173,14 @@ class EOkulSpeadApp {
 
     const schemaBadge = document.getElementById('schema-q-count-badge');
     if (schemaBadge) schemaBadge.textContent = `Soru Puanları (${this.settings.questionCount} adet)`;
+
+    const formatHint = this.getVoiceScoreFormatHint();
+    const spokenRecordHint = document.getElementById('spoken-record-format-hint');
+    if (spokenRecordHint) spokenRecordHint.textContent = formatHint;
+    const livePreview = document.getElementById('speech-live-preview');
+    if (livePreview && !this.isListening && !this.isTranscribing && !this.isStartingOneShotRecording) {
+      livePreview.textContent = `Kaydı başlatın. ${formatHint} Whisper üç öğrenciyi tabloya ekler.`;
+    }
 
     const autoSortCheck = document.getElementById('setting-auto-sort');
     if (autoSortCheck) autoSortCheck.checked = this.settings.autoSort;
