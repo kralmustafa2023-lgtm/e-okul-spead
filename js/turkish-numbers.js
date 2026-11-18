@@ -328,7 +328,7 @@ const TurkishNumberParser = (() => {
 
     if (hasLabels) {
       // Öğrenci sınırlarına göre parçalara ayır
-      const splitRegex = /(?=(?:okul\s*no|okul\s*numaras[ıi]|öğrenci\s*no|ogrenci\s*no|öğrenci\s+\d|ogrenci\s+\d|numara\s+\d|\bno\s+\d))/gui;
+      const splitRegex = /(?=(?:okul\s*no|okul\s*numaras[ıi]|öğrenci\s*(?:no|numaras[ıi])|ogrenci\s*(?:no|numaras[ıi])|öğrenci\s+\d|ogrenci\s+\d|numara(?:s[ıi])?\s+\d|\bno\s+\d))/gui;
       const parts = lower.split(splitRegex).map(s => s.trim()).filter(Boolean);
 
       for (const part of parts) {

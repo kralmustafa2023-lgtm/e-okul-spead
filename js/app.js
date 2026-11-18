@@ -1217,7 +1217,7 @@ class EOkulSpeadApp {
       form.append('model', this.groqModel);
       form.append('temperature', '0');
       form.append('language', 'tr');
-      form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
+      form.append('prompt', 'Türkçe sınav notu diktesi. Tek kayıtta üç öğrenci sırayla söylenir. Her öğrencide okul numarası, toplam puan ve soru puanları bulunur. Sayıları ve öğrenci sırasını aynen koru; kayıtları atlama.');
       form.append('response_format', 'json');
       return form;
     };
@@ -1476,7 +1476,7 @@ class EOkulSpeadApp {
       if (this.settings.soundEnabled && typeof SoundEffects !== 'undefined' && SoundEffects.playRecordStart) {
         SoundEffects.playRecordStart();
       }
-      this.showToast('Ses kaydı başladı. Bitince kırmızı düğmeye basın.', 'info');
+      this.showToast('Ses kaydı başladı. Üç öğrenciyi sırayla söyleyin; bitince kırmızı düğmeye basın.', 'info');
     } catch (error) {
       console.error('Ses kaydı başlatılamadı:', error);
       if (this.oneShotStream) {
@@ -1534,6 +1534,84 @@ class EOkulSpeadApp {
     }
   }
 
+  prepareThreeStudentEntries(transcript) {
+    const parsedStudents = TurkishNumberParser.parseAllStudentsFromText(
+      transcript,
+      this.settings.questionCount
+    );
+    if (parsedStudents.length !== 3) {
+      return {
+        ok: false,
+        message: `Whisper ${parsedStudents.length} öğrenci ayırt etti; her kayıtta tam 3 öğrenci bekleniyor.`
+      };
+    }
+
+    const labeledQuestionCounts = parsedStudents.map(parsed => {
+      if (!parsed.isLabeled || !parsed.questionScoresMap) return null;
+      const questionIndices = Object.keys(parsed.questionScoresMap)
+        .map(Number)
+        .filter(Number.isSafeInteger)
+        .sort((a, b) => a - b);
+      const contiguous = questionIndices.length >= 2 &&
+        questionIndices.every((questionNumber, index) => questionNumber === index + 1);
+      return contiguous && parsed.totalsMatch ? questionIndices.length : null;
+    });
+    const inferredQuestionCount = labeledQuestionCounts[0];
+    const canInferQuestionCount = inferredQuestionCount !== null &&
+      labeledQuestionCounts.every(count => count === inferredQuestionCount);
+    const questionCount = canInferQuestionCount
+      ? inferredQuestionCount
+      : this.settings.questionCount;
+
+    const seenStudentNumbers = new Set();
+    const students = [];
+    for (const parsed of parsedStudents) {
+      if (!Number.isSafeInteger(parsed.studentNo) || parsed.studentNo <= 0) {
+        return { ok: false, message: 'Üç kayıttan en az birinde öğrenci numarası tanınmadı.' };
+      }
+      if (!Number.isSafeInteger(parsed.statedTotal) || parsed.statedTotal < 0) {
+        return { ok: false, message: `Öğrenci ${parsed.studentNo} için toplam puan tanınmadı.` };
+      }
+      if (seenStudentNumbers.has(parsed.studentNo)) {
+        return { ok: false, message: `Öğrenci ${parsed.studentNo} aynı kayıtta birden fazla kez bulundu.` };
+      }
+      seenStudentNumbers.add(parsed.studentNo);
+
+      const questionScores = parsed.isLabeled
+        ? Array.from({ length: questionCount }, (_, index) => parsed.questionScoresMap?.[index + 1])
+        : (parsed.questionScores || []).slice(0, questionCount);
+      if (
+        questionScores.length !== questionCount ||
+        questionScores.some(score => !Number.isSafeInteger(score) || score < 0)
+      ) {
+        return {
+          ok: false,
+          message: `Öğrenci ${parsed.studentNo} için soru puanları eksik. Soru sayısını ayarlayın veya puanları daha net söyleyin.`
+        };
+      }
+
+      const calculatedTotal = questionScores.reduce((sum, score) => sum + score, 0);
+      const totalsMatch = parsed.statedTotal === calculatedTotal;
+      students.push({
+        rawSpeech: parsed.rawText || transcript,
+        entry: {
+          studentNo: parsed.studentNo,
+          statedTotal: parsed.statedTotal,
+          questionScores,
+          calculatedTotal,
+          totalsMatch,
+          hasExpectedQuestions: true,
+          status: totalsMatch ? 'PERFECT' : 'TOTAL_MISMATCH'
+        }
+      });
+    }
+
+    if (canInferQuestionCount && inferredQuestionCount !== this.settings.questionCount) {
+      this.updateQuestionCount(inferredQuestionCount);
+    }
+    return { ok: true, students };
+  }
+
   async transcribeOneShotRecording(audioBlob) {
     const transcriptionId = ++this.oneShotTranscriptionId;
     const controller = new AbortController();
@@ -1553,36 +1631,46 @@ class EOkulSpeadApp {
       );
       if (transcriptionId !== this.oneShotTranscriptionId) return;
       if (!text) {
+        this.retryWhisperAudioBlob = audioBlob;
+        if (retryButton) retryButton.classList.remove('hidden');
         finalPreview = 'Whisper konuşmayı algılayamadı. Daha net ve biraz daha yüksek sesle tekrar deneyin.';
         this.showToast('Ses kaydında konuşma algılanamadı.', 'warning');
         return;
       }
-      this.retryWhisperAudioBlob = null;
       if (this.isGarbageOrHallucination(text)) {
+        this.retryWhisperAudioBlob = audioBlob;
+        if (retryButton) retryButton.classList.remove('hidden');
         finalPreview = 'Whisper geçerli bir sayı algılayamadı. Kaydı tekrar deneyin.';
         this.showToast('Kayıtta öğrenci numarası veya puan bulunamadı.', 'warning');
         return;
       }
 
       finalPreview = `Whisper metni: ${text}`;
-      const parsed = TurkishNumberParser.parseSpokenStudent(text, this.settings.questionCount);
-      if (!parsed || !this.validateGroqNumbers(parsed.allNumbers)) {
-        this.showToast('Whisper metnindeki sayılar işlenemedi. Kaydı tekrar deneyin.', 'warning');
+      const parsed = this.prepareThreeStudentEntries(text);
+      if (!parsed.ok) {
+        this.retryWhisperAudioBlob = audioBlob;
+        if (retryButton) retryButton.classList.remove('hidden');
+        finalPreview += ` — ${parsed.message} Kaydı tekrar Whisper’a gönderebilir veya yeniden kaydedebilirsiniz.`;
+        this.showToast(parsed.message, 'warning');
         return;
       }
 
+      this.retryWhisperAudioBlob = null;
       this.currentSlots = [];
       this.groqSlotStartedAt = 0;
-      this.handleSpokenTranscript(text, true);
+      this.renderLiveSlots();
+      parsed.students.forEach(student => {
+        this.addOrUpdateStudent(student.entry, student.rawSpeech, { silent: true });
+      });
 
-      if (this.currentSlots.length > 0) {
-        finalPreview += ' — Eksik veya tanınmayan değerleri aşağıdaki kutulardan tamamlayın.';
-        this.showToast('Ses çözüldü; eksik öğrenci veya puan bilgilerini kutulardan tamamlayın.', 'warning');
-      } else if (parsed.studentNo !== null && parsed.statedTotal !== null) {
-        finalPreview += ` — Öğrenci ${parsed.studentNo} kaydedildi.`;
+      const studentNumbers = parsed.students.map(student => student.entry.studentNo);
+      const mismatchedTotals = parsed.students.filter(student => !student.entry.totalsMatch).length;
+      finalPreview += ` — 3 öğrenci kaydedildi: ${studentNumbers.join(', ')}.`;
+      if (mismatchedTotals > 0) {
+        finalPreview += ` ${mismatchedTotals} öğrencide söylenen toplam ile soru puanları uyuşmuyor; tabloyu kontrol edin.`;
+        this.showToast(`3 öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.`, 'warning');
       } else {
-        finalPreview += ' — Öğrenci numarası veya toplam puan tanınmadı.';
-        this.showToast('Öğrenci numarası ve toplam puanı söyleyin; bu kayıt tabloya eklenmedi.', 'warning');
+        this.showToast('3 öğrenci başarıyla tabloya eklendi veya güncellendi.', 'success');
       }
     } catch (error) {
       if (error.name === 'AbortError') return;
@@ -1636,7 +1724,7 @@ class EOkulSpeadApp {
       if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
       if (micPulse) micPulse.classList.add('hidden');
       if (micTimer) micTimer.classList.add('hidden');
-      if (livePreview) livePreview.textContent = statusMessage || 'Kayıt Whisper AI ile çözümleniyor. Öğrenci, toplam puan ve soru puanları hazırlanıyor…';
+      if (livePreview) livePreview.textContent = statusMessage || 'Kayıt Whisper AI ile çözümleniyor. Üç öğrencinin numara ve puanları hazırlanıyor…';
     } else if (active) {
       if (micBtn) {
         micBtn.disabled = false;
@@ -1651,7 +1739,7 @@ class EOkulSpeadApp {
       if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
       if (micPulse) micPulse.classList.remove('hidden');
       if (micTimer) micTimer.classList.remove('hidden');
-      if (livePreview) livePreview.textContent = 'Bir öğrencinin okul numarasını, toplam puanını ve soru puanlarını sırayla söyleyin.';
+      if (livePreview) livePreview.textContent = 'Üç öğrencinin okul numarasını, toplam puanını ve soru puanlarını sırayla söyleyin.';
     } else {
       if (micBtn) {
         micBtn.disabled = false;
@@ -1670,11 +1758,11 @@ class EOkulSpeadApp {
         micTimer.classList.add('hidden');
         micTimer.textContent = '00:00';
       }
-      if (livePreview) livePreview.textContent = 'Kaydı başlatın, bir öğrencinin okul numarasını, toplam puanını ve soru puanlarını söyleyin. Kaydı durdurunca Whisper metne çevirip öğrenciyi tabloya ekler.';
+      if (livePreview) livePreview.textContent = 'Kaydı başlatın ve üç öğrenciyi sırayla söyleyin. Her biri için okul numarası, toplam puan ve soru puanlarını verin; Whisper üçünü de tabloya ekler.';
     }
   }
 
-  addOrUpdateStudent(entry, rawSpeech = '') {
+  addOrUpdateStudent(entry, rawSpeech = '', options = {}) {
     const existingIndex = this.students.findIndex(s => s.studentNo === entry.studentNo);
     const newStudent = {
       id: existingIndex >= 0 ? this.students[existingIndex].id : 'std_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -1690,13 +1778,13 @@ class EOkulSpeadApp {
 
     if (existingIndex >= 0) {
       this.students[existingIndex] = newStudent;
-      this.showToast(`${entry.studentNo} nolu öğrenci güncellendi!`, 'info');
+      if (!options.silent) this.showToast(`${entry.studentNo} nolu öğrenci güncellendi!`, 'info');
     } else {
       this.students.push(newStudent);
-      this.showToast(`${entry.studentNo} nolu öğrenci eklendi!`, 'success');
+      if (!options.silent) this.showToast(`${entry.studentNo} nolu öğrenci eklendi!`, 'success');
     }
 
-    if (this.settings.soundEnabled) {
+    if (this.settings.soundEnabled && !options.silent) {
       if (entry.status === 'PERFECT') {
         SoundEffects.playSuccess();
       } else {
