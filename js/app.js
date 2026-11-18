@@ -49,6 +49,9 @@ class EOkulSpeadApp {
     this.oneShotSeconds = 0;
     this.oneShotMimeType = 'audio/webm';
     this.isStartingOneShotRecording = false;
+    this.isStartingGroqRecording = false;
+    this.isGroqStopping = false;
+    this.groqStopRecorderResolve = null;
     this.oneShotTranscriptionId = 0;
     this.retryWhisperAudioBlob = null;
 
@@ -502,7 +505,7 @@ class EOkulSpeadApp {
   }
 
   // --- CANLI SLOT BESLEYİCİ (SLOT FEEDER) ---
-  feedNumbers(numbers, capturedAt = Date.now()) {
+  feedNumbers(numbers, capturedAt = Date.now(), autoCommit = true) {
     if (!numbers || numbers.length === 0) return;
 
     const neededTotal = 2 + this.settings.questionCount; // 1 No + 1 Toplam + Sorular
@@ -514,7 +517,7 @@ class EOkulSpeadApp {
       this.renderLiveSlots();
 
       // Bu öğrencinin tüm kutuları doldu mu?
-      if (this.currentSlots.length === neededTotal) {
+      if (autoCommit && this.currentSlots.length === neededTotal) {
         this.commitCurrentSlots();
       }
     }
@@ -522,13 +525,13 @@ class EOkulSpeadApp {
 
   // Canlı kutucuklar tamamlandığında öğrenciyi kaydet
   commitCurrentSlots() {
-    if (this.currentSlots.length < 2 || this.currentSlots[0] === undefined || this.currentSlots[1] === undefined) return;
+    if (this.currentSlots.length < 2 || this.currentSlots[0] === undefined || this.currentSlots[1] === undefined) return null;
 
     const studentNo = parseInt(this.currentSlots[0], 10);
     const statedTotal = parseInt(this.currentSlots[1], 10);
     if (isNaN(studentNo) || studentNo <= 0) {
       this.showToast('Geçersiz öğrenci numarası!', 'warning');
-      return;
+      return null;
     }
 
     const scores = [];
@@ -559,6 +562,31 @@ class EOkulSpeadApp {
     if (!totalsMatch) {
       this.showToast(`Öğrenci ${studentNo} eklendi; söylenen toplam ${statedTotal}, hesaplanan toplam ${calculatedTotal}.`, 'warning');
     }
+    return studentEntry;
+  }
+
+  commitVoiceCommandStudent() {
+    const hasValues = this.currentSlots.some(value => value !== undefined && value !== null);
+    if (!hasValues) return false;
+
+    const neededTotal = 2 + this.settings.questionCount;
+    const missing = Array.from({ length: neededTotal }, (_, index) => this.currentSlots[index])
+      .some(value => !Number.isSafeInteger(value) || value < 0);
+    const extraValues = this.currentSlots.length > neededTotal;
+    if (missing || extraValues) {
+      const detected = this.currentSlots.filter(value => Number.isSafeInteger(value)).length;
+      this.showToast(
+        `“Başla” algılandı; bu öğrenci için ${detected}/${neededTotal} sayı tamam. Kutuları düzeltip yeniden “başla” deyin.`,
+        'warning'
+      );
+      return false;
+    }
+
+    const savedStudent = this.commitCurrentSlots();
+    if (savedStudent?.totalsMatch) {
+      this.showToast(`Öğrenci ${savedStudent.studentNo} tabloya eklendi. Mikrofon dinlemeye devam ediyor.`, 'success');
+    }
+    return Boolean(savedStudent);
   }
 
   // Son söylenen tek bir sayıyı geri al
@@ -609,7 +637,7 @@ class EOkulSpeadApp {
   }
 
   // Konuşulan veya kaydedilen metni slotlara aktar
-  handleSpokenTranscript(transcript, isFinal = false) {
+  handleSpokenTranscript(transcript, isFinal = false, autoCommit = true) {
     if (!transcript) return;
     const parsed = TurkishNumberParser.parseSpokenStudent(transcript, this.settings.questionCount);
     if (!parsed) return;
@@ -657,7 +685,7 @@ class EOkulSpeadApp {
     const isComplete = this.currentSlots.length >= neededTotal &&
       this.currentSlots.slice(0, neededTotal).every(v => v !== undefined && v !== null);
 
-    if (isComplete && isFinal) {
+    if (isComplete && isFinal && autoCommit) {
       this.commitCurrentSlots();
     }
   }
@@ -952,9 +980,15 @@ class EOkulSpeadApp {
   }
 
   async startGroqRecording() {
+    if (this.isListening || this.isStartingGroqRecording || this.isTranscribing) return;
     const sessionId = ++this.groqSessionId;
+    this.isListening = true;
+    this.isGroqStopping = false;
+    this.isStartingGroqRecording = true;
     let sessionStream = null;
+    this.updateMicUI(true);
     try {
+      if (this.isAbsentListening) this.toggleAbsentListening();
       if (!this.micStream || !this.micStream.active) {
         sessionStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -1013,9 +1047,9 @@ class EOkulSpeadApp {
         // ÖNCELİK: Kayıt cihazını ÖNCE yeniden başlat → ölü süreyi minimuma indir
         // Eski kod burada race condition yaratıyordu (recorder.state kontrolü
         // her zaman geçmiyordu). Artık 30ms güvenli gecikme ile başlatılıyor.
-        if (this.isCurrentGroqSession(sessionId) && this.mediaRecorder === recorder) {
+        if (this.isCurrentGroqSession(sessionId) && !this.isGroqStopping && this.mediaRecorder === recorder) {
           setTimeout(() => {
-            if (this.isCurrentGroqSession(sessionId) && this.mediaRecorder === recorder && recorder.state === 'inactive') {
+            if (this.isCurrentGroqSession(sessionId) && !this.isGroqStopping && this.mediaRecorder === recorder && recorder.state === 'inactive') {
               try {
                 recorder.start();
               } catch (err) {
@@ -1038,6 +1072,11 @@ class EOkulSpeadApp {
             }
           }
         }
+        if (this.groqStopRecorderResolve) {
+          const resolveStopped = this.groqStopRecorderResolve;
+          this.groqStopRecorderResolve = null;
+          resolveStopped();
+        }
       };
 
       if (!this.isCurrentGroqSession(sessionId)) {
@@ -1055,16 +1094,33 @@ class EOkulSpeadApp {
       this.startGroqVAD();
 
       const statusEl = document.getElementById('mic-status-text');
-      if (statusEl) statusEl.textContent = '🟢 Dinliyor... (Gürültü Kalkanı Aktif)';
+      if (statusEl) statusEl.textContent = '🟢 Mikrofon açık — öğrencinin notlarını okuyun, bitince “başla” deyin.';
       const livePreview = document.getElementById('speech-live-preview');
-      if (livePreview) livePreview.textContent = 'Konuşun... Notları sırayla okuyun (örn: 14 85 20 20 20 25)';
+      if (livePreview) livePreview.textContent = this.getVoiceScoreFormatHint();
+      this.oneShotSeconds = 0;
+      if (this.oneShotTimer) clearInterval(this.oneShotTimer);
+      this.oneShotTimer = setInterval(() => {
+        this.oneShotSeconds++;
+        const timer = document.getElementById('mic-record-timer');
+        if (timer) {
+          timer.textContent = `${String(Math.floor(this.oneShotSeconds / 60)).padStart(2, '0')}:${String(this.oneShotSeconds % 60).padStart(2, '0')}`;
+        }
+      }, 1000);
     } catch (err) {
-      if (!this.isCurrentGroqSession(sessionId)) return;
+      if (sessionId !== this.groqSessionId) return;
       console.error('Groq mikrofon başlatma hatası:', err);
       this.showToast('Mikrofon açılamadı! Lütfen mikrofon iznini kontrol edin.', 'error');
       this.isListening = false;
+      this.groqSessionId++;
+      this.isGroqRecording = false;
+      if (this.oneShotTimer) {
+        clearInterval(this.oneShotTimer);
+        this.oneShotTimer = null;
+      }
       this.updateMicUI(false);
       this.releaseGroqAudioStream(sessionStream);
+    } finally {
+      this.isStartingGroqRecording = false;
     }
   }
 
@@ -1174,6 +1230,39 @@ class EOkulSpeadApp {
     return false;
   }
 
+  processGroqScoreText(text, capturedAt) {
+    const scoreText = text.trim();
+    if (!scoreText || this.isGarbageOrHallucination(scoreText)) return;
+
+    const parsed = TurkishNumberParser.parseSpokenStudent(scoreText, this.settings.questionCount);
+    if (parsed && parsed.isLabeled) {
+      if (this.currentSlots.length === 0) this.groqSlotStartedAt = capturedAt;
+      this.handleSpokenTranscript(scoreText, true, false);
+      return;
+    }
+
+    const numbers = TurkishNumberParser.extractNumbers(scoreText);
+    if (!numbers.length) return;
+    if (!this.validateGroqNumbers(numbers)) {
+      this.showToast('Bu ses parçasındaki sayı aralık dışı; önceki kutular korundu.', 'warning');
+      return;
+    }
+    this.feedNumbers(numbers, capturedAt, false);
+  }
+
+  processGroqTranscript(text, capturedAt) {
+    const boundaryPattern = /(^|[\s,.!?;:])başla(?=$|[\s,.!?;:])/giu;
+    let cursor = 0;
+    let match;
+    while ((match = boundaryPattern.exec(text)) !== null) {
+      const commandStart = match.index + match[1].length;
+      this.processGroqScoreText(text.slice(cursor, commandStart), capturedAt);
+      this.commitVoiceCommandStudent();
+      cursor = boundaryPattern.lastIndex;
+    }
+    this.processGroqScoreText(text.slice(cursor), capturedAt);
+  }
+
   validateGroqNumbers(numbers) {
     if (!Array.isArray(numbers) || numbers.length === 0) return false;
 
@@ -1198,7 +1287,7 @@ class EOkulSpeadApp {
       form.append('temperature', '0');
       form.append('language', 'tr');
       if (promptMode === 'context') {
-        form.append('prompt', 'Türkçe sınav notu diktesi; öğrenci numaraları, toplam puanlar ve soru puanları.');
+        form.append('prompt', 'Türkçe sınav notu diktesi; öğrenci numaraları, toplam puanlar ve soru puanları. Öğrenci puanları tamamlanınca söylenen “başla” komutunu aynen yaz.');
       }
       form.append('response_format', 'json');
       return form;
@@ -1279,39 +1368,15 @@ class EOkulSpeadApp {
       if (!this.isCurrentGroqSession(sessionId)) return;
 
       if (text) {
-        if (this.isGarbageOrHallucination(text)) {
+        const commandOnly = /(^|[\s,.!?;:])başla(?=$|[\s,.!?;:])/iu.test(text) &&
+          !TurkishNumberParser.extractNumbers(text.replace(/(^|[\s,.!?;:])başla(?=$|[\s,.!?;:])/giu, '$1')).length;
+        if (!commandOnly && this.isGarbageOrHallucination(text)) {
           console.warn('Gürültü/halüsinasyon metni filtrelendi:', text);
           if (livePreview) livePreview.textContent = '⚠️ Arka plan karmaşa sesi filtrelendi.';
-          // Gürültü parçasını yok say; önceki doğru sayılar kutularda kalsın.
           return;
         }
         if (livePreview) livePreview.textContent = text;
-        const parsed = TurkishNumberParser.parseSpokenStudent(text, this.settings.questionCount);
-        if (parsed && parsed.isLabeled) {
-          this.handleSpokenTranscript(text, true);
-        } else {
-          const numbers = TurkishNumberParser.extractNumbers(text);
-          if (numbers && numbers.length > 0) {
-            if (
-              this.currentSlots.length > 0 &&
-              this.groqSlotStartedAt &&
-              capturedAt - this.groqSlotStartedAt > this.groqSlotTimeoutMs
-            ) {
-              this.currentSlots = [];
-              this.groqSlotStartedAt = 0;
-              this.renderLiveSlots();
-              this.showToast('Eksik Whisper kaydı zaman aşımına uğradı ve temizlendi.', 'warning');
-            }
-
-            if (!this.validateGroqNumbers(numbers)) {
-              this.showToast('Bu ses parçasındaki sayı aralık dışı; önceki kutular korundu.', 'warning');
-              return;
-            }
-
-            this.feedNumbers(numbers, capturedAt);
-            if (this.currentSlots.length === 0) this.groqSlotStartedAt = 0;
-          }
-        }
+        this.processGroqTranscript(text, capturedAt);
       }
     } catch (err) {
       if (!this.isCurrentGroqSession(sessionId) || err.name === 'AbortError') return;
@@ -1322,44 +1387,73 @@ class EOkulSpeadApp {
         this.activeTranscriptionController = null;
         this.isTranscribing = false;
       }
-      if (this.isCurrentGroqSession(sessionId) && statusEl && !this.isSpeaking) {
+      if (this.isCurrentGroqSession(sessionId) && !this.isGroqStopping && statusEl && !this.isSpeaking) {
         statusEl.textContent = '🟢 Dinliyor... (Whisper AI)';
       }
     }
   }
 
-  stopGroqRecording() {
-    // İzin penceresi veya Whisper isteği henüz beklerken kapatma olursa eski oturumu geçersiz kıl.
-    this.groqSessionId++;
-    this.discardCurrentGroqSegment = true;
-    this.isTranscribing = false;
-    if (this.activeTranscriptionController) {
-      this.activeTranscriptionController.abort();
-      this.activeTranscriptionController = null;
-    }
+  async stopGroqRecording() {
+    if (!this.isListening || this.isGroqStopping) return;
+    const sessionId = this.groqSessionId;
+    this.isGroqStopping = true;
     if (this.groqVadInterval) {
       clearInterval(this.groqVadInterval);
       this.groqVadInterval = null;
     }
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+
+    const recorder = this.mediaRecorder;
+    let recorderStopped = Promise.resolve();
+    if (recorder && recorder.state !== 'inactive') {
+      const speechDuration = this.isSpeaking ? Date.now() - this.speechStartTime : 0;
+      this.discardCurrentGroqSegment = !(this.isSpeaking && speechDuration >= this.minimumGroqSpeechDurationMs);
+      recorderStopped = new Promise(resolve => {
+        this.groqStopRecorderResolve = resolve;
+      });
       try {
-        this.mediaRecorder.stop();
-      } catch (e) {}
+        recorder.stop();
+      } catch (error) {
+        const resolveStopped = this.groqStopRecorderResolve;
+        this.groqStopRecorderResolve = null;
+        resolveStopped?.();
+      }
     }
     this.isGroqRecording = false;
     this.isSpeaking = false;
     this.groqSpeechStartCandidateAt = 0;
+    this.updateMicUI(false, true, 'Son ses parçası işleniyor…');
+
+    await recorderStopped;
+    await this.groqTranscriptionQueue.catch(() => {});
+    if (sessionId !== this.groqSessionId) return;
+
+    this.isListening = false;
+    this.groqSessionId++;
+    this.isGroqStopping = false;
+    this.isTranscribing = false;
     this.recordedAudioChunks = [];
-    this.renderLiveSlots();
+    if (this.oneShotTimer) {
+      clearInterval(this.oneShotTimer);
+      this.oneShotTimer = null;
+    }
     this.releaseGroqAudioStream();
+    this.updateMicUI(false);
+    if (this.currentSlots.some(value => value !== undefined && value !== null)) {
+      this.showToast('Mikrofon kapandı. “Başla” denmeden kaydedilmeyen öğrenci puanları kutularda duruyor.', 'warning');
+    }
   }
 
   toggleListening() {
+    if (this.isStartingGroqRecording || this.isGroqStopping) return;
     if (this.isListening) {
-      this.stopOneShotRecording();
+      this.stopGroqRecording();
       return;
     }
-    this.startOneShotRecording();
+    if (this.micEngine !== 'groq') {
+      this.micEngine = 'groq';
+      localStorage.setItem('eokul_spead_mic_engine', 'groq');
+    }
+    this.startGroqRecording();
   }
 
   async startOneShotRecording() {
@@ -1745,14 +1839,14 @@ class EOkulSpeadApp {
     } else if (active) {
       if (micBtn) {
         micBtn.disabled = false;
-        micBtn.setAttribute('aria-label', 'Kaydı durdur ve Whisper’a gönder');
-        micBtn.title = 'Kaydı bitir ve Whisper AI’ya gönder';
+        micBtn.setAttribute('aria-label', 'Mikrofonu kapat');
+        micBtn.title = 'Sürekli dinlemeyi durdur';
         micBtn.innerHTML = stopIcon;
         micBtn.classList.remove('opacity-70', 'cursor-wait', 'bg-indigo-600', 'hover:bg-indigo-700');
         micBtn.classList.add('bg-red-500', 'hover:bg-red-600', 'animate-pulse');
       }
-      if (micStatus) micStatus.textContent = 'Kayıt alınıyor — bitirmek için düğmeye basın';
-      if (micLabel) micLabel.textContent = 'Kaydı bitir ve gönder';
+      if (micStatus) micStatus.textContent = 'Mikrofon açık — her öğrenciyi bitirince “başla” deyin.';
+      if (micLabel) micLabel.textContent = 'Dinleme açık';
       if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
       if (micPulse) micPulse.classList.remove('hidden');
       if (micTimer) micTimer.classList.remove('hidden');
@@ -1760,29 +1854,29 @@ class EOkulSpeadApp {
     } else {
       if (micBtn) {
         micBtn.disabled = false;
-        micBtn.setAttribute('aria-label', 'Ses kaydını başlat');
-        micBtn.title = 'Kaydı başlat; bitince tekrar tıklayarak Whisper’a gönder';
+        micBtn.setAttribute('aria-label', 'Mikrofonu aç');
+        micBtn.title = 'Sürekli mikrofon dinlemesini başlat';
         micBtn.innerHTML = micIcon;
         micBtn.classList.remove('opacity-70', 'cursor-wait');
         micBtn.classList.remove('bg-red-500', 'hover:bg-red-600', 'animate-pulse');
         micBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
       }
       if (micStatus) micStatus.textContent = 'Kayda hazır';
-      if (micLabel) micLabel.textContent = 'Kaydı başlat';
+      if (micLabel) micLabel.textContent = 'Mikrofonu aç';
       if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-slate-400';
       if (micPulse) micPulse.classList.add('hidden');
       if (micTimer) {
         micTimer.classList.add('hidden');
         micTimer.textContent = '00:00';
       }
-      if (livePreview) livePreview.textContent = `Kaydı başlatın. ${this.getVoiceScoreFormatHint()} Tam gruplar tabloya eklenir.`;
+      if (livePreview) livePreview.textContent = `Mikrofonu açın. ${this.getVoiceScoreFormatHint()}`;
     }
   }
 
   getVoiceScoreFormatHint() {
     const questionCount = this.settings.questionCount;
     const valuesPerStudent = questionCount + 2;
-    return `Etiket söylemeyin. Her öğrenci için okul numarası, toplam puan, ardından ${questionCount} soru puanını sırayla söyleyin. Her ${valuesPerStudent} sayı bir öğrencidir; tamamlanan gruplar eklenir.`;
+    return `Her öğrenci için okul numarası, toplam puan ve ${questionCount} soru puanını sırayla söyleyin (${valuesPerStudent} sayı). Ardından “başla” deyin; o öğrencinin notları hemen eklenir ve mikrofon dinlemeyi sürdürür.`;
   }
 
   addOrUpdateStudent(entry, rawSpeech = '', options = {}) {
@@ -2190,7 +2284,7 @@ class EOkulSpeadApp {
     const formatHint = this.getVoiceScoreFormatHint();
     const livePreview = document.getElementById('speech-live-preview');
     if (livePreview && !this.isListening && !this.isTranscribing && !this.isStartingOneShotRecording) {
-      livePreview.textContent = `Kaydı başlatın. ${formatHint} Tam gruplar tabloya eklenir.`;
+      livePreview.textContent = `Mikrofonu açın. ${formatHint}`;
     }
 
     const autoSortCheck = document.getElementById('setting-auto-sort');
