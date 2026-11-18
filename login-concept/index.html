@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7fc" />
+    <meta name="description" content="e-Okul Spead öğretmen giriş sayfası için bağımsız tasarım ön izlemesi." />
+    <title>Öğretmen Portalı · e-Okul Spead</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17223b;
+        --muted: #65718b;
+        --line: #e7ebf3;
+        --blue: #3159d9;
+        --blue-dark: #2347c1;
+        --green: #39c9a1;
+        --field: #f8f9fc;
+        --focus: #7594ff;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(ellipse at 10% 0%, rgba(211, 224, 255, .56), transparent 31rem),
+          radial-gradient(ellipse at 100% 100%, rgba(214, 247, 239, .38), transparent 27rem),
+          #f5f7fc;
+        font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      button:focus-visible, a:focus-visible, input:focus-visible {
+        outline: 3px solid rgba(83, 119, 243, .36);
+        outline-offset: 3px;
+      }
+
+      .page { width: min(1240px, 100% - 64px); margin: 0 auto; padding: 27px 0 30px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 8px 21px; }
+      .brand { display: inline-flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
+      .brand-mark {
+        display: grid; width: 42px; height: 42px; place-items: center; border-radius: 14px;
+        color: white; background: linear-gradient(145deg, #4774f2, #3154d2);
+        box-shadow: 0 8px 18px rgba(49, 89, 217, .23);
+      }
+      .brand-mark svg { width: 25px; height: 25px; }
+      .brand-name { font-family: Outfit, sans-serif; font-size: 19px; font-weight: 700; letter-spacing: -.5px; line-height: 1.1; }
+      .brand-name span { color: var(--blue); }
+      .brand-caption { margin-top: 4px; color: #77819a; font-size: 10px; font-weight: 600; letter-spacing: .1px; }
+      .top-note { display: flex; align-items: center; gap: 9px; color: #68738c; font-size: 12px; font-weight: 600; }
+      .top-note svg { width: 16px; color: #71809e; }
+
+      .login-shell {
+        display: grid; grid-template-columns: 1.02fr .98fr; min-height: 690px; overflow: hidden;
+        border: 1px solid rgba(227, 232, 242, .94); border-radius: 30px; background: #fff;
+        box-shadow: 0 28px 80px rgba(39, 57, 102, .11), 0 3px 11px rgba(41, 57, 95, .035);
+      }
+
+      .story-panel {
+        position: relative; isolation: isolate; display: flex; min-height: 690px; flex-direction: column;
+        overflow: hidden; padding: 54px 54px 40px; color: white;
+        background: linear-gradient(145deg, #2449bd 0%, #3159d9 49%, #416be6 100%);
+      }
+      .story-panel::before, .story-panel::after { position: absolute; z-index: -1; content: ""; pointer-events: none; }
+      .story-panel::before {
+        top: -180px; right: -95px; width: 510px; height: 510px; border: 1px solid rgba(255,255,255,.13);
+        border-radius: 50%; box-shadow: 0 0 0 32px rgba(255,255,255,.035), 0 0 0 76px rgba(255,255,255,.028), 0 0 0 126px rgba(255,255,255,.02);
+      }
+      .story-panel::after {
+        right: -100px; bottom: -240px; width: 490px; height: 490px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(20, 200, 160, .24), transparent 68%); filter: blur(2px);
+      }
+      .panel-tag { display: inline-flex; width: fit-content; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #e7efff; background: rgba(255,255,255,.095); font-size: 10px; font-weight: 700; letter-spacing: 1.15px; }
+      .panel-tag svg { width: 14px; height: 14px; color: #78edcb; }
+      .story-copy { max-width: 470px; margin-top: 28px; }
+      .story-copy h1 { max-width: 470px; margin: 0; font-family: Outfit, sans-serif; font-size: clamp(36px, 4.15vw, 54px); font-weight: 600; letter-spacing: -2.2px; line-height: 1.08; }
+      .story-copy h1 span { color: #90f0d2; }
+      .story-copy p { max-width: 408px; margin: 18px 0 0; color: rgba(238, 243, 255, .78); font-size: 14px; line-height: 1.85; }
+
+      .preview-card {
+        position: relative; width: min(100%, 450px); margin: 36px 0 0 8px; padding: 19px 20px 17px;
+        border: 1px solid rgba(255,255,255,.22); border-radius: 20px; background: rgba(255,255,255,.12);
+        box-shadow: 0 19px 44px rgba(17, 37, 109, .17); backdrop-filter: blur(14px);
+      }
+      .preview-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      .preview-label { color: rgba(241,245,255,.71); font-size: 10px; font-weight: 700; letter-spacing: 1.05px; text-transform: uppercase; }
+      .preview-title { margin-top: 6px; font-family: Outfit, sans-serif; font-size: 17px; font-weight: 600; letter-spacing: -.25px; }
+      .preview-status { display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid rgba(177, 255, 229, .21); border-radius: 8px; color: #d9fff3; background: rgba(24, 188, 146, .16); font-size: 10px; font-weight: 700; white-space: nowrap; }
+      .preview-status i { width: 6px; height: 6px; border-radius: 50%; background: #77efc8; box-shadow: 0 0 0 3px rgba(119,239,200,.15); }
+      .wave-box { display: flex; height: 84px; align-items: center; justify-content: center; gap: 5px; margin-top: 18px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; background: rgba(19, 44, 128, .17); }
+      .wave-box span { width: 4px; height: var(--h); border-radius: 5px; background: linear-gradient(180deg, #a2f5d9, #dff7ff); opacity: .86; }
+      .wave-box span:nth-child(3n) { opacity: .62; }
+      .wave-box span:nth-child(5n) { opacity: .97; }
+      .preview-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+      .preview-hint { display: flex; align-items: center; gap: 8px; color: rgba(240,244,255,.82); font-size: 11px; font-weight: 600; }
+      .preview-hint svg { width: 15px; height: 15px; color: #8fe8cf; }
+      .preview-empty { color: rgba(240,244,255,.59); font-family: Outfit, sans-serif; font-size: 11px; font-weight: 500; }
+      .story-bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: auto; padding-top: 36px; color: rgba(240,244,255,.69); font-size: 11px; }
+      .story-bottom strong { color: white; font-weight: 700; }
+      .mini-proof { display: flex; align-items: center; gap: 9px; }
+      .mini-proof svg { width: 18px; color: #8fe8cf; }
+
+      .form-panel { display: flex; align-items: center; justify-content: center; padding: 56px 56px 44px; }
+      .auth-content { width: min(100%, 405px); }
+      .auth-kicker { margin: 0 0 11px; color: var(--blue); font-size: 10px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+      .auth-content h2 { margin: 0; font-family: Outfit, sans-serif; font-size: 34px; font-weight: 600; letter-spacing: -1.25px; line-height: 1.15; }
+      .auth-intro { margin: 10px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+      .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 21px; padding: 4px; border: 1px solid #e9edf4; border-radius: 12px; background: #f5f7fb; }
+      .mode-button { min-height: 40px; padding: 9px 10px; border: 0; border-radius: 9px; color: #69758c; background: transparent; font-size: 12px; font-weight: 700; transition: color .18s ease, background .18s ease, box-shadow .18s ease; }
+      .mode-button[aria-pressed="true"] { color: #263c83; background: #fff; box-shadow: 0 2px 7px rgba(35,54,105,.09), 0 0 0 1px rgba(227,232,241,.68); }
+
+      .google-button { display: flex; width: 100%; min-height: 49px; align-items: center; justify-content: center; gap: 11px; border: 1px solid #dfe4ed; border-radius: 11px; color: #34405a; background: #fff; font-size: 12px; font-weight: 700; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+      .google-button:hover { border-color: #c3cee2; box-shadow: 0 6px 16px rgba(40,57,100,.07); transform: translateY(-1px); }
+      .google-button svg { width: 18px; height: 18px; }
+      .divider { display: flex; align-items: center; gap: 13px; margin: 20px 0 18px; color: #8992a6; font-size: 10px; font-weight: 600; }
+      .divider::before, .divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+
+      .form-stack { display: grid; gap: 15px; }
+      .field { display: grid; gap: 7px; }
+      .field label { color: #39445d; font-size: 11px; font-weight: 700; }
+      .input-wrap { position: relative; }
+      .field input { display: block; width: 100%; height: 47px; padding: 0 14px; border: 1px solid #dfe4ed; border-radius: 10px; color: var(--ink); background: var(--field); font-size: 12px; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+      .field input::placeholder { color: #a1a9ba; }
+      .field input:hover { border-color: #c9d2e2; }
+      .field input:focus { border-color: #7390f4; outline: 0; background: #fff; box-shadow: 0 0 0 3px rgba(83,119,243,.12); }
+      .password-input { padding-right: 64px !important; }
+      .password-toggle { position: absolute; top: 50%; right: 12px; padding: 6px 1px; transform: translateY(-50%); border: 0; color: #63708a; background: none; font-size: 10px; font-weight: 700; }
+      .password-toggle:hover { color: var(--blue-dark); }
+      .field-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -3px; }
+      .remember { display: inline-flex; align-items: center; gap: 7px; color: #68738b; font-size: 10px; font-weight: 600; cursor: pointer; }
+      .remember input { width: 14px; height: 14px; margin: 0; accent-color: var(--blue); }
+      .text-button { padding: 4px 0; border: 0; color: var(--blue-dark); background: none; font-size: 10px; font-weight: 700; text-decoration: none; }
+      .text-button:hover { color: #173cae; text-decoration: underline; text-underline-offset: 3px; }
+      .primary-button { display: flex; width: 100%; min-height: 49px; align-items: center; justify-content: center; gap: 10px; margin-top: 2px; border: 0; border-radius: 10px; color: #fff; background: linear-gradient(100deg, #3159d9, #4268e7); box-shadow: 0 8px 18px rgba(49,89,217,.2); font-size: 12px; font-weight: 800; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+      .primary-button:hover { background: linear-gradient(100deg, #284fcf, #365cdb); box-shadow: 0 10px 21px rgba(49,89,217,.27); transform: translateY(-1px); }
+      .primary-button svg { width: 16px; height: 16px; }
+      .apply-note { margin: 14px 0 0; color: #768199; font-size: 10px; text-align: center; }
+      .apply-note button { padding: 0; border: 0; color: var(--blue-dark); background: none; font-size: inherit; font-weight: 800; }
+      .apply-note button:hover { text-decoration: underline; text-underline-offset: 3px; }
+      .demo-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 24px; padding-top: 17px; border-top: 1px solid #edf0f5; color: #7c879b; font-size: 10px; line-height: 1.65; }
+      .demo-note svg { width: 15px; min-width: 15px; margin-top: 1px; color: #7c8cae; }
+      .status-message { min-height: 0; margin: 0; color: #3152a3; font-size: 11px; font-weight: 600; line-height: 1.5; }
+      .status-message:not(:empty) { margin-top: 13px; padding: 10px 12px; border: 1px solid #d9e3ff; border-radius: 9px; background: #f4f7ff; }
+      .auth-form[hidden] { display: none; }
+
+      @media (max-width: 980px) {
+        .page { width: min(760px, 100% - 40px); padding-top: 20px; }
+        .login-shell { grid-template-columns: 1fr; }
+        .story-panel { min-height: auto; padding: 38px 42px 28px; }
+        .story-copy { margin-top: 20px; }
+        .story-copy h1 { max-width: 610px; font-size: clamp(36px, 6vw, 48px); }
+        .story-copy p { max-width: 570px; margin-top: 12px; }
+        .preview-card { width: min(100%, 530px); margin-top: 23px; }
+        .story-bottom { padding-top: 27px; }
+        .form-panel { padding: 43px 50px 38px; }
+      }
+
+      @media (max-width: 560px) {
+        .page { width: 100%; padding: 0; }
+        .topbar { min-height: 70px; margin: 0; padding: 12px 20px; background: rgba(255,255,255,.82); }
+        .brand-mark { width: 38px; height: 38px; border-radius: 12px; }
+        .brand-name { font-size: 17px; }
+        .top-note { gap: 6px; font-size: 10px; }
+        .top-note svg { width: 14px; }
+        .login-shell { gap: 0; border: 0; border-radius: 0; box-shadow: none; }
+        .story-panel { padding: 31px 23px 22px; }
+        .panel-tag { padding: 7px 10px; font-size: 9px; }
+        .story-copy { margin-top: 17px; }
+        .story-copy h1 { max-width: 390px; font-size: clamp(35px, 10vw, 44px); letter-spacing: -1.7px; }
+        .story-copy p { margin-top: 10px; font-size: 12px; line-height: 1.75; }
+        .preview-card { margin: 20px 0 0; padding: 15px; }
+        .preview-title { font-size: 15px; }
+        .preview-status { padding: 6px 8px; font-size: 9px; }
+        .wave-box { height: 64px; gap: 4px; margin-top: 13px; }
+        .wave-box span { width: 3px; }
+        .preview-foot { align-items: flex-start; flex-direction: column; gap: 7px; margin-top: 11px; }
+        .story-bottom { padding-top: 21px; font-size: 9px; }
+        .mini-proof { gap: 6px; }
+        .mini-proof svg { width: 15px; }
+        .form-panel { padding: 34px 23px 30px; }
+        .auth-content h2 { font-size: 30px; }
+        .auth-intro { margin-bottom: 20px; font-size: 12px; }
+        .demo-note { margin-top: 21px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="e-Okul Spead ana sayfa">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 28 28" fill="none"><path d="M4 14h3l2.1-6 4.2 12 3.1-9 2.1 5H24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="14" r="1.2" fill="#8FF0D1"/></svg>
+          </span>
+          <span><span class="brand-name">e-Okul <span>Spead</span></span><span class="brand-caption">Sesli Öğretmen Not Asistanı</span></span>
+        </a>
+        <div class="top-note">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12a2 2 0 0 1 2 2v7H4v-7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 14v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Öğretmen portalı
+        </div>
+      </header>
+
+      <main class="login-shell">
+        <section class="story-panel" aria-labelledby="story-heading">
+          <div class="panel-tag">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5v15M5.5 5v10M14.5 5v10M2.5 7.5v5m15-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            ÖĞRETMENLER İÇİN AKILLI NOT GİRİŞİ
+          </div>
+          <div class="story-copy">
+            <h1 id="story-heading">Notlarınızı<br />sesinizle <span>hazırlayın.</span></h1>
+            <p>Sınav değerlendirme akışınızı daha rahat yönetin. Sesli not girişini kullanın, sonuçları gözden geçirin ve kontrol sizde kalsın.</p>
+          </div>
+
+          <div class="preview-card" aria-label="Sesli not girişi arayüz ön izlemesi">
+            <div class="preview-head">
+              <div><div class="preview-label">Arayüz ön izlemesi</div><div class="preview-title">Sesli not girişi</div></div>
+              <span class="preview-status"><i aria-hidden="true"></i> Hazır</span>
+            </div>
+            <div class="wave-box" aria-hidden="true">
+              <span style="--h:12px"></span><span style="--h:20px"></span><span style="--h:31px"></span><span style="--h:18px"></span><span style="--h:39px"></span><span style="--h:27px"></span><span style="--h:15px"></span><span style="--h:34px"></span><span style="--h:22px"></span><span style="--h:43px"></span><span style="--h:25px"></span><span style="--h:16px"></span><span style="--h:30px"></span><span style="--h:41px"></span><span style="--h:20px"></span><span style="--h:33px"></span><span style="--h:14px"></span><span style="--h:28px"></span><span style="--h:39px"></span><span style="--h:18px"></span><span style="--h:31px"></span><span style="--h:22px"></span><span style="--h:13px"></span><span style="--h:35px"></span><span style="--h:25px"></span><span style="--h:17px"></span><span style="--h:40px"></span><span style="--h:21px"></span><span style="--h:30px"></span><span style="--h:14px"></span><span style="--h:35px"></span><span style="--h:23px"></span><span style="--h:17px"></span><span style="--h:29px"></span><span style="--h:39px"></span><span style="--h:19px"></span><span style="--h:28px"></span><span style="--h:13px"></span><span style="--h:33px"></span><span style="--h:22px"></span><span style="--h:16px"></span><span style="--h:37px"></span><span style="--h:25px"></span><span style="--h:18px"></span><span style="--h:31px"></span><span style="--h:14px"></span><span style="--h:26px"></span></div>
+            <div class="preview-foot">
+              <div class="preview-hint"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 17a4 4 0 0 0 4-4V7a4 4 0 1 0-8 0v6a4 4 0 0 0 4 4Zm0 0v2m-4-5a4 4 0 0 0 8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Mikrofon ve sonuçlar sizin kontrolünüzde</div>
+              <span class="preview-empty">Örnek veri yok</span>
+            </div>
+          </div>
+
+          <div class="story-bottom">
+            <span>Öğretmen iş akışına göre tasarlandı</span>
+            <span class="mini-proof"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 10 3.1 3.1L15 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><strong>Son kontrol sizde</strong></span>
+          </div>
+        </section>
+
+        <section class="form-panel" aria-label="Öğretmen girişi">
+          <div class="auth-content">
+            <p class="auth-kicker">Öğretmen portalı</p>
+            <h2 id="auth-title">Tekrar hoş geldiniz</h2>
+            <p class="auth-intro" id="auth-intro">Hesabınıza giriş yaparak kaldığınız yerden devam edin.</p>
+
+            <div class="mode-switch" role="group" aria-label="Hesap işlemi">
+              <button class="mode-button" type="button" data-mode="login" aria-pressed="true">Giriş yap</button>
+              <button class="mode-button" type="button" data-mode="register" aria-pressed="false">Sisteme başvur</button>
+            </div>
+
+            <button class="google-button" type="button" id="google-demo">
+              <svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.797 2.715v2.258h2.91c1.703-1.568 2.683-3.88 2.683-6.614Z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.86-3.047.86-2.344 0-4.33-1.582-5.04-3.71H.953v2.332A9 9 0 0 0 9 18Z"/><path fill="#FBBC05" d="M3.96 10.71A5.41 5.41 0 0 1 3.68 9c0-.593.102-1.168.28-1.71V4.958H.953A9 9 0 0 0 0 9c0 1.455.349 2.833.953 4.042l3.007-2.332Z"/><path fill="#EA4335" d="M9 3.58c1.323 0 2.51.455 3.446 1.347l2.586-2.586C13.463.892 11.43 0 9 0A9 9 0 0 0 .953 4.958L3.96 7.29C4.67 5.162 6.656 3.58 9 3.58Z"/></svg>
+              Google ile devam et
+            </button>
+            <div class="divider">veya e-posta ile</div>
+
+            <form class="auth-form form-stack" id="login-form" novalidate>
+              <div class="field" data-only-register hidden>
+                <label for="full-name">Adınız soyadınız</label>
+                <input id="full-name" name="name" type="text" autocomplete="name" placeholder="Ad Soyad" />
+              </div>
+              <div class="field">
+                <label for="email">E-posta adresi</label>
+                <input id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="ornek@okul.edu.tr" required />
+              </div>
+              <div class="field">
+                <label for="password">Şifre</label>
+                <div class="input-wrap">
+                  <input class="password-input" id="password" name="password" type="password" autocomplete="current-password" placeholder="En az 6 karakter" required />
+                  <button class="password-toggle" type="button" aria-label="Şifreyi göster" aria-pressed="false">Göster</button>
+                </div>
+              </div>
+              <div class="field-meta" id="login-options">
+                <label class="remember"><input type="checkbox" name="remember" /> Oturumumu açık tut</label>
+                <button class="text-button" id="forgot-password" type="button">Şifremi unuttum?</button>
+              </div>
+              <button class="primary-button" type="submit"><span id="submit-label">Giriş yap</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </form>
+            <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
+            <p class="apply-note" id="apply-note">Hesabınız yok mu? <button type="button" data-switch="register">Sisteme başvurun</button></p>
+            <div class="demo-note"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.4"/><path d="M10 9v4m0-6h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Bağımsız tasarım ön izlemesi. Bu sayfada gerçek giriş, kayıt veya Google bağlantısı yapılmaz.</span></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      (() => {
+        const buttons = [...document.querySelectorAll('[data-mode]')];
+        const status = document.getElementById('status-message');
+        const title = document.getElementById('auth-title');
+        const intro = document.getElementById('auth-intro');
+        const submitLabel = document.getElementById('submit-label');
+        const nameField = document.querySelector('[data-only-register]');
+        const password = document.getElementById('password');
+        const passwordToggle = document.querySelector('.password-toggle');
+        const options = document.getElementById('login-options');
+        const applyNote = document.getElementById('apply-note');
+        let mode = 'login';
+
+        function setMode(nextMode) {
+          mode = nextMode;
+          const isRegister = mode === 'register';
+          buttons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.mode === mode)));
+          title.textContent = isRegister ? 'Hesap başvurusu' : 'Tekrar hoş geldiniz';
+          intro.textContent = isRegister ? 'Öğretmen portalı erişimi için bilgilerinizi girin.' : 'Hesabınıza giriş yaparak kaldığınız yerden devam edin.';
+          submitLabel.textContent = isRegister ? 'Başvuru ön izlemesini gönder' : 'Giriş yap';
+          nameField.hidden = !isRegister;
+          nameField.querySelector('input').required = isRegister;
+          options.hidden = isRegister;
+          password.autocomplete = isRegister ? 'new-password' : 'current-password';
+          applyNote.hidden = isRegister;
+          status.textContent = '';
+        }
+
+        buttons.forEach((button) => button.addEventListener('click', () => setMode(button.dataset.mode)));
+        document.querySelectorAll('[data-switch]').forEach((button) => button.addEventListener('click', () => setMode(button.dataset.switch)));
+        passwordToggle.addEventListener('click', () => {
+          const reveal = password.type === 'password';
+          password.type = reveal ? 'text' : 'password';
+          passwordToggle.textContent = reveal ? 'Gizle' : 'Göster';
+          passwordToggle.setAttribute('aria-label', reveal ? 'Şifreyi gizle' : 'Şifreyi göster');
+          passwordToggle.setAttribute('aria-pressed', String(reveal));
+        });
+        document.getElementById('forgot-password').addEventListener('click', () => {
+          status.textContent = 'Şifre sıfırlama bu bağımsız ön izlemeye bağlı değil.';
+        });
+        document.getElementById('google-demo').addEventListener('click', () => {
+          status.textContent = 'Google girişi bu bağımsız ön izlemeye bağlı değil.';
+        });
+        document.getElementById('login-form').addEventListener('submit', (event) => {
+          event.preventDefault();
+          status.textContent = mode === 'register'
+            ? 'Başvuru formu görsel ön izleme içindir; bilgiler gönderilmedi.'
+            : 'Giriş formu görsel ön izleme içindir; oturum açılmadı.';
+        });
+      })();
+    </script>
+  </body>
+</html>
