@@ -90,43 +90,42 @@
     <!-- ÜST KONTROL MERKEZİ -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <!-- MİKROFON VE SÜREKLİ SES PANELİ (2 Sütun Genişlik) -->
+      <!-- WHISPER SES KAYIT PANELİ (2 Sütun Genişlik) -->
       <div class="lg:col-span-2 bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-slate-800">
         <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div class="flex flex-col sm:flex-row items-center gap-6">
-          <!-- Mikrofon Butonu -->
-          <div class="relative flex-shrink-0">
+          <!-- Başlat / durdur ses kaydı -->
+          <div class="relative flex-shrink-0 flex flex-col items-center">
             <div id="mic-pulse-ring" class="hidden absolute -inset-2 bg-red-500/30 rounded-full mic-glowing-ring"></div>
-            <button id="mic-toggle-btn" class="relative z-10 w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition-all transform active:scale-95 group">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <button id="mic-toggle-btn" type="button" aria-label="Ses kaydını başlat" title="Kaydı başlat; bitince tekrar tıklayarak Whisper'a gönder" class="relative z-10 w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition-all transform active:scale-95 group">
+              <svg id="mic-button-icon" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
             </button>
+            <span id="mic-button-label" class="mt-2 text-xs font-semibold text-indigo-100">Kaydı başlat</span>
           </div>
 
           <!-- Canlı Durum ve Bilgi -->
           <div class="flex-1 text-center sm:text-left space-y-2 w-full">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-2">
-                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span id="mic-status-text" class="text-sm font-semibold tracking-wide text-indigo-200">Mikrofon Kapalı (Başlatmak İçin Butona Tıklayın)</span>
+                <span id="mic-status-dot" class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                <span id="mic-status-text" class="text-sm font-semibold tracking-wide text-indigo-200" role="status" aria-live="polite">Kayda hazır</span>
+                <span id="mic-record-timer" class="hidden font-mono text-xs bg-black/40 px-2 py-1 rounded-md border border-white/10" aria-hidden="true">00:00</span>
               </div>
               
-              <!-- Ses Motoru Seçici (Groq Whisper vs Tarayıcı Web Mic) -->
+              <!-- Kullanılan transkripsiyon sağlayıcısı -->
               <div class="flex items-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 text-xs">
-                <button type="button" id="btn-engine-groq" onclick="app.setMicEngine('groq')" class="px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 bg-violet-600 text-white shadow-md shadow-violet-600/30" title="Groq Whisper-large-v3 Yapay Zeka Motoru">
-                  <span>⚡</span> Whisper AI
-                </button>
-                <button type="button" id="btn-engine-web" onclick="app.setMicEngine('web')" class="px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5" title="Tarayıcı Standart Web Mikrofonu">
-                  <span>🌐</span> Web Mic
-                </button>
-                <button type="button" onclick="app.configureGroqApiKey()" class="px-2 py-1 rounded-lg font-medium text-slate-300 hover:text-white transition" title="Whisper anahtarı tüm cihazlar için sunucu ayarından kullanılır">🔑</button>
+                <span class="px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 bg-violet-600 text-white shadow-md shadow-violet-600/30" aria-label="Ses metne Whisper AI ile çevrilecek">
+                  <span aria-hidden="true">⚡</span> Whisper AI
+                </span>
+                <button type="button" onclick="app.configureGroqApiKey()" class="min-w-11 min-h-11 px-2 py-1 rounded-lg font-medium text-slate-300 hover:text-white transition" title="Whisper için sunucu anahtarı veya isteğe bağlı cihaz anahtarı ayarları">🔑</button>
               </div>
             </div>
             
-            <!-- Canlı Dinleme Metin Kutusu -->
+            <!-- Kayıt durumu ve tanınan metin -->
             <div class="bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl p-3 space-y-2">
-              <p id="speech-live-preview" class="text-sm text-slate-300 italic min-h-[1.75rem] flex items-center justify-center sm:justify-start">
-                Mikrofonu açtıktan sonra yalnızca sayıları sırayla okuyun; kelimeli konuşma işlenmez. Örn: "18 15 4 3 5 3..."
+              <p id="speech-live-preview" class="text-sm text-slate-300 min-h-[1.75rem] flex items-center justify-center sm:justify-start" aria-live="polite">
+                Kaydı başlatın, bir öğrencinin okul numarasını, toplam puanını ve soru puanlarını söyleyin. Kaydı durdurunca Whisper metne çevirip öğrenciyi tabloya ekler.
               </p>
               
               <!-- Canlı Mikrofon Ses Seviyesi Barı -->
@@ -142,16 +141,8 @@
                   <span class="text-base">🎯</span> Şu An Okunan Öğrenci:
                 </span>
                 
-                <!-- Ses Kayıt Butonu ve Kontroller -->
+                <!-- Aktif öğrenci kutusu kontrolleri -->
                 <div class="flex flex-wrap items-center gap-1.5">
-                  <!-- Özel Ses Kayıt Butonu -->
-                  <button type="button" id="btn-slot-record" onclick="app.toggleVoiceRecording()" title="Öğrenci notlarını ses kaydıyla okumak için tıklayın"
-                    class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-rose-600/30 active:scale-95 group">
-                    <span id="slot-record-icon" class="text-xs">🔴</span>
-                    <span id="slot-record-text">Ses Kaydı Al</span>
-                    <span id="slot-record-timer" class="hidden font-mono bg-black/40 px-1.5 py-0.5 rounded text-[10px] border border-white/20">00:00</span>
-                  </button>
-
                   <button type="button" onclick="app.commitManualSlots()" title="Mevcut kutulardaki puanları tabloya ekle" class="text-[10px] bg-indigo-700 hover:bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg border border-indigo-500/50 transition flex items-center gap-1 active:scale-95">
                     <span>💾</span> Tabloya Ekle
                   </button>
@@ -160,21 +151,12 @@
                 </div>
               </div>
 
-              <!-- Canlı Kayıt Bilgilendirme Rozeti -->
-              <div id="slot-recording-banner" class="hidden p-2 bg-rose-950/40 border border-rose-500/30 rounded-lg flex items-center justify-between text-xs text-rose-200 animate-pulse">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
-                  <span>🎙️ <strong>Ses Kaydı Aktif:</strong> "Okul No 15 Toplam 60 S1 20 S2 20 S3 20" veya "15 60 20 20 20" şeklinde okuyun.</span>
-                </span>
-                <span class="text-[11px] font-mono text-rose-300">Konuşma bitince otomatik aktarılır veya butona tekrar basın</span>
-              </div>
-
               <!-- Dinamik Kutucuklar (Tıklanabilir & Düzenlenebilir) -->
               <div id="live-slots-container" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
               </div>
 
               <p class="text-[10px] text-slate-400 flex items-center gap-1 pt-0.5">
-                <span>💡</span> <em>İpucu:</em> Ses kaydı yaparken numaraları hem isimleriyle (örn: <strong>"Okul No 15, Toplam 60, S1 20, S2 20, S3 20"</strong>) hem de doğrudan sırayla (örn: <strong>"15 60 20 20 20"</strong>) söyleyebilirsiniz; sistem sayıları doğru kutulara otomatik yerleştirir. Kutucuklara tıklayarak değerleri elle de değiştirebilirsiniz.
+                <span>💡</span> <em>İpucu:</em> Okul numarası, toplam puan ve soru puanlarını sırayla söyleyin. İsterseniz “Okul No 15, Toplam 60, S1 20, S2 20, S3 20” şeklinde etiketleyin; tanınan değerleri kayıttan sonra kutucuklardan düzeltebilirsiniz.
               </p>
             </div>
 

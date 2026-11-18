@@ -43,6 +43,14 @@ class EOkulSpeadApp {
     this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
     this.groqApiKey = localStorage.getItem('groq_api_key') || localStorage.getItem('eokul_spead_groq_api_key') || '';
     this.groqModel = 'whisper-large-v3';
+    this.oneShotRecorder = null;
+    this.oneShotChunks = [];
+    this.oneShotStream = null;
+    this.oneShotTimer = null;
+    this.oneShotSeconds = 0;
+    this.oneShotMimeType = 'audio/webm';
+    this.isStartingOneShotRecording = false;
+    this.oneShotTranscriptionId = 0;
 
     // Groq MediaRecorder ve VAD durumu
     this.mediaRecorder = null;
@@ -1198,6 +1206,59 @@ class EOkulSpeadApp {
     return true;
   }
 
+  async requestWhisperTranscription(audioBlob, signal, shouldContinue = () => true) {
+    if (!shouldContinue()) return '';
+    const mimeType = audioBlob.type || this.mediaRecorderMimeType || 'audio/webm';
+    const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+    const form = new FormData();
+    form.append('file', audioBlob, `audio.${ext}`);
+    form.append('model', this.groqModel);
+    form.append('temperature', '0');
+    form.append('language', 'tr');
+    form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
+    form.append('response_format', 'json');
+
+    let response;
+    if (this.groqApiKey) {
+      response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + this.groqApiKey },
+        body: form,
+        signal
+      });
+    } else {
+      const user = window.db?.auth?.currentUser;
+      const idToken = user ? await user.getIdToken() : '';
+      if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
+      if (!shouldContinue()) return '';
+
+      try {
+        response = await fetch('/api/transcriptions', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + idToken },
+          body: form,
+          signal
+        });
+      } catch (fetchError) {
+        throw new Error('Whisper sunucu bağlantısı kurulamadı. Lütfen 🔑 ayarlarını kontrol edin.');
+      }
+
+      if (response.status === 404) {
+        throw new Error('Whisper sunucu uç noktası bulunamadı. Projeyi Vercel üzerinden açın.');
+      }
+    }
+
+    if (!shouldContinue()) return '';
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!shouldContinue()) return '';
+    return (data.text || '').trim();
+  }
+
   async transcribeWithGroq(audioBlob, sessionId = this.groqSessionId, capturedAt = Date.now()) {
     if (!this.isCurrentGroqSession(sessionId)) return;
     this.isTranscribing = true;
@@ -1207,63 +1268,12 @@ class EOkulSpeadApp {
     this.activeTranscriptionController = controller;
 
     try {
-      const ext = this.mediaRecorderMimeType.includes('mp4') ? 'm4a' : 'webm';
-      const form = new FormData();
-      form.append('file', audioBlob, `audio.${ext}`);
-      form.append('model', this.groqModel);
-      form.append('temperature', '0');
-      form.append('language', 'tr');
-      // Somut puan örnekleri, belirsiz seslerde modelin sayı uydurmasını teşvik edebilir.
-      form.append('prompt', 'Türkçe sınav notu okuma. Öğrenci numarası, toplam puan ve soru puanları sırayla söylenir.');
-      form.append('response_format', 'json');
-
-      let resp = null;
-
-      // 1. Eğer doğrudan Groq API anahtarı girilmişse doğrudan Groq'a gönder
-      if (this.groqApiKey) {
-        resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + this.groqApiKey
-          },
-          body: form,
-          signal: controller.signal
-        });
-      } else {
-        // 2. Yoksa sunucu proxy'sini (/api/transcriptions) dene
-        const user = window.db?.auth?.currentUser;
-        const idToken = user ? await user.getIdToken() : '';
-        if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
-        if (!this.isCurrentGroqSession(sessionId)) return;
-
-        try {
-          resp = await fetch('/api/transcriptions', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + idToken
-            },
-            body: form,
-            signal: controller.signal
-          });
-        } catch (fetchErr) {
-          throw new Error('Whisper sunucu bağlantısı kurulamadı. Lütfen 🔑 butonuna basarak Groq API anahtarınızı girin.');
-        }
-
-        if (resp.status === 404) {
-          throw new Error('Yerel sunucu modunda API proxy bulunamadı. Lütfen 🔑 butonuna tıklayıp Groq API anahtarınızı (gsk_...) girin.');
-        }
-      }
-
+      const text = await this.requestWhisperTranscription(
+        audioBlob,
+        controller.signal,
+        () => this.isCurrentGroqSession(sessionId)
+      );
       if (!this.isCurrentGroqSession(sessionId)) return;
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `HTTP ${resp.status}`);
-      }
-
-      const data = await resp.json();
-      if (!this.isCurrentGroqSession(sessionId)) return;
-      const text = (data.text || '').trim();
 
       if (text) {
         if (this.isGarbageOrHallucination(text)) {
@@ -1342,81 +1352,282 @@ class EOkulSpeadApp {
   }
 
   toggleListening() {
-    if (this.isAbsentListening) {
-      this.toggleAbsentListening();
+    if (this.isListening) {
+      this.stopOneShotRecording();
+      return;
+    }
+    this.startOneShotRecording();
+  }
+
+  async startOneShotRecording() {
+    if (this.isStartingOneShotRecording || this.isTranscribing) return;
+
+    if (this.currentSlots.some(value => value !== undefined && value !== null)) {
+      this.showToast('Yeni kayıt öncesinde aktif öğrenci kutularını tabloya ekleyin veya sıfırlayın.', 'warning');
+      return;
     }
 
-    if (this.isListening) {
-      this.isListening = false;
-      if (this.micEngine === 'groq') {
-        this.stopGroqRecording();
-      } else {
-        if (this._silenceTimer) {
-          clearTimeout(this._silenceTimer);
-          this._silenceTimer = null;
-        }
-        try {
-          this.recognition.stop();
-        } catch (e) {}
-        this.stopAudioVisualizer();
-      }
-      this.updateMicUI(false);
-      this.renderLiveSlots();
-      this.showToast('Mikrofon duraklatıldı.', 'info');
-    } else {
-      this.isListening = true;
-      this.updateMicUI(true);
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      this.showToast('Ses kaydı için güncel bir tarayıcıda veya HTTPS bağlantısında açın.', 'error');
+      return;
+    }
 
-      if (this.micEngine === 'groq') {
-        this.startGroqRecording();
-        this.showToast('⚡ Whisper AI Mikrofonu açıldı! Okumaya başlayabilirsiniz.', 'success');
-      } else {
-        if (!this.speechSupported) {
-          this.showToast('Tarayıcınız Web Speech API desteklemiyor. Google Chrome kullanın.', 'error');
-          this.isListening = false;
+    this.isStartingOneShotRecording = true;
+    this.updateMicUI(false, true, 'Mikrofon izni bekleniyor…');
+
+    try {
+      if (this.isAbsentListening) this.toggleAbsentListening();
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      this.oneShotStream = stream;
+      const supportedTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+      const mimeType = typeof MediaRecorder.isTypeSupported === 'function'
+        ? supportedTypes.find(type => MediaRecorder.isTypeSupported(type)) || ''
+        : '';
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      this.oneShotMimeType = recorder.mimeType || mimeType || 'audio/webm';
+      this.oneShotChunks = [];
+      this.oneShotRecorder = recorder;
+      this.micStream = stream;
+      this.oneShotSeconds = 0;
+
+      recorder.ondataavailable = event => {
+        if (event.data && event.data.size > 0) this.oneShotChunks.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        this.isListening = false;
+        if (this.oneShotTimer) {
+          clearInterval(this.oneShotTimer);
+          this.oneShotTimer = null;
+        }
+        this.updateMicUI(false, true, 'Kayıt Whisper AI’ya gönderiliyor…');
+        const audioBlob = new Blob(this.oneShotChunks, { type: this.oneShotMimeType });
+        this.oneShotChunks = [];
+        if (this.oneShotRecorder === recorder) this.oneShotRecorder = null;
+
+        stream.getTracks().forEach(track => track.stop());
+        if (this.oneShotStream === stream) this.oneShotStream = null;
+        if (this.micStream === stream) this.micStream = null;
+        this.stopAudioVisualizer();
+
+        if (audioBlob.size < 800) {
           this.updateMicUI(false);
+          this.showToast('Kayıt çok kısa veya sessiz. Lütfen tekrar deneyin.', 'warning');
           return;
         }
-        try {
-          this._restartLock = false;
-          if (this._silenceTimer) {
-            clearTimeout(this._silenceTimer);
-            this._silenceTimer = null;
-          }
-          this.recognition.start();
-          this.showToast('🌐 Web Mikrofonu açıldı! Yalnızca sayıları sırayla okuyun.', 'success');
-        } catch (e) {
-          console.error('Web mikrofon başlatılamadı:', e);
+
+        this.transcribeOneShotRecording(audioBlob);
+      };
+
+      recorder.onerror = event => {
+        console.error('Ses kaydı hatası:', event.error || event);
+        this.showToast('Ses kaydı sırasında hata oluştu. Tekrar deneyin.', 'error');
+      };
+
+      recorder.start();
+      this.isListening = true;
+      this.updateMicUI(true);
+      this.oneShotTimer = setInterval(() => {
+        this.oneShotSeconds++;
+        const timer = document.getElementById('mic-record-timer');
+        if (timer) {
+          const minutes = String(Math.floor(this.oneShotSeconds / 60)).padStart(2, '0');
+          const seconds = String(this.oneShotSeconds % 60).padStart(2, '0');
+          timer.textContent = `${minutes}:${seconds}`;
         }
+      }, 1000);
+
+      this.initAudioVisualizer();
+      if (this.settings.soundEnabled && typeof SoundEffects !== 'undefined' && SoundEffects.playRecordStart) {
+        SoundEffects.playRecordStart();
+      }
+      this.showToast('Ses kaydı başladı. Bitince kırmızı düğmeye basın.', 'info');
+    } catch (error) {
+      console.error('Ses kaydı başlatılamadı:', error);
+      if (this.oneShotStream) {
+        this.oneShotStream.getTracks().forEach(track => track.stop());
+        this.oneShotStream = null;
+        this.micStream = null;
+      }
+      this.oneShotRecorder = null;
+      this.oneShotChunks = [];
+      if (this.oneShotTimer) {
+        clearInterval(this.oneShotTimer);
+        this.oneShotTimer = null;
+      }
+      this.stopAudioVisualizer();
+      this.isListening = false;
+      this.updateMicUI(false);
+      const message = error.name === 'NotAllowedError'
+        ? 'Mikrofon izni verilmedi. Tarayıcı izinlerinden mikrofon erişimini açın.'
+        : 'Mikrofon açılamadı. Bağlantısını ve tarayıcı iznini kontrol edin.';
+      this.showToast(message, 'error');
+    } finally {
+      this.isStartingOneShotRecording = false;
+    }
+  }
+
+  stopOneShotRecording() {
+    const recorder = this.oneShotRecorder;
+    if (!recorder || recorder.state === 'inactive') return;
+
+    this.isListening = false;
+    if (this.oneShotTimer) {
+      clearInterval(this.oneShotTimer);
+      this.oneShotTimer = null;
+    }
+    this.stopAudioVisualizer();
+    this.updateMicUI(false, true, 'Kayıt Whisper AI’ya gönderiliyor…');
+    if (this.settings.soundEnabled && typeof SoundEffects !== 'undefined' && SoundEffects.playRecordStop) {
+      SoundEffects.playRecordStop();
+    }
+
+    try {
+      recorder.stop();
+    } catch (error) {
+      console.error('Ses kaydı durdurulamadı:', error);
+      this.isListening = false;
+      this.oneShotRecorder = null;
+      this.oneShotChunks = [];
+      if (this.oneShotStream) {
+        this.oneShotStream.getTracks().forEach(track => track.stop());
+        if (this.micStream === this.oneShotStream) this.micStream = null;
+        this.oneShotStream = null;
+      }
+      this.updateMicUI(false);
+      this.showToast('Kayıt durdurulamadı. Sayfayı yenileyip tekrar deneyin.', 'error');
+    }
+  }
+
+  async transcribeOneShotRecording(audioBlob) {
+    const transcriptionId = ++this.oneShotTranscriptionId;
+    const controller = new AbortController();
+    this.activeTranscriptionController = controller;
+    this.isTranscribing = true;
+    this.updateMicUI(false, true, 'Whisper kaydı metne çeviriyor…');
+    const livePreview = document.getElementById('speech-live-preview');
+    let finalPreview = '';
+
+    try {
+      const text = await this.requestWhisperTranscription(
+        audioBlob,
+        controller.signal,
+        () => transcriptionId === this.oneShotTranscriptionId
+      );
+      if (transcriptionId !== this.oneShotTranscriptionId) return;
+      if (!text) {
+        finalPreview = 'Whisper konuşmayı algılayamadı. Daha net ve biraz daha yüksek sesle tekrar deneyin.';
+        this.showToast('Ses kaydında konuşma algılanamadı.', 'warning');
+        return;
+      }
+      if (this.isGarbageOrHallucination(text)) {
+        finalPreview = 'Whisper geçerli bir sayı algılayamadı. Kaydı tekrar deneyin.';
+        this.showToast('Kayıtta öğrenci numarası veya puan bulunamadı.', 'warning');
+        return;
+      }
+
+      finalPreview = `Whisper metni: ${text}`;
+      const parsed = TurkishNumberParser.parseSpokenStudent(text, this.settings.questionCount);
+      if (!parsed || !this.validateGroqNumbers(parsed.allNumbers)) {
+        this.showToast('Whisper metnindeki sayılar işlenemedi. Kaydı tekrar deneyin.', 'warning');
+        return;
+      }
+
+      this.currentSlots = [];
+      this.groqSlotStartedAt = 0;
+      this.handleSpokenTranscript(text, true);
+
+      if (this.currentSlots.length > 0) {
+        finalPreview += ' — Eksik veya tanınmayan değerleri aşağıdaki kutulardan tamamlayın.';
+        this.showToast('Ses çözüldü; eksik öğrenci veya puan bilgilerini kutulardan tamamlayın.', 'warning');
+      } else if (parsed.studentNo !== null && parsed.statedTotal !== null) {
+        finalPreview += ` — Öğrenci ${parsed.studentNo} kaydedildi.`;
+      } else {
+        finalPreview += ' — Öğrenci numarası veya toplam puan tanınmadı.';
+        this.showToast('Öğrenci numarası ve toplam puanı söyleyin; bu kayıt tabloya eklenmedi.', 'warning');
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      console.error('Whisper ses kaydı çözümlenemedi:', error);
+      finalPreview = 'Whisper kaydı çözümlenemedi. Bağlantıyı kontrol edip tekrar deneyin.';
+      this.showToast('Whisper hatası: ' + error.message, 'error');
+    } finally {
+      if (this.activeTranscriptionController === controller) {
+        this.activeTranscriptionController = null;
+      }
+      if (transcriptionId === this.oneShotTranscriptionId) {
+        this.isTranscribing = false;
+        this.updateMicUI(false);
+        if (livePreview && finalPreview) livePreview.textContent = finalPreview;
       }
     }
   }
 
-  updateMicUI(active) {
+  updateMicUI(active, processing = false, statusMessage = '') {
     const micBtn = document.getElementById('mic-toggle-btn');
+    const micLabel = document.getElementById('mic-button-label');
     const micStatus = document.getElementById('mic-status-text');
     const micPulse = document.getElementById('mic-pulse-ring');
+    const micDot = document.getElementById('mic-status-dot');
+    const micTimer = document.getElementById('mic-record-timer');
     const livePreview = document.getElementById('speech-live-preview');
+    const micIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
+    const stopIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+    const loadingIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
 
-    if (active) {
+    if (processing) {
       if (micBtn) {
+        micBtn.disabled = true;
+        micBtn.setAttribute('aria-label', 'Whisper kaydı çözümlüyor');
+        micBtn.title = statusMessage || 'Whisper kaydı çözümlüyor';
+        micBtn.innerHTML = loadingIcon;
+        micBtn.classList.remove('bg-red-500', 'hover:bg-red-600', 'animate-pulse');
+        micBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700', 'opacity-70', 'cursor-wait');
+      }
+      if (micStatus) micStatus.textContent = statusMessage || 'Whisper kaydı metne çeviriyor…';
+      if (micLabel) micLabel.textContent = 'Whisper çözümlüyor…';
+      if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+      if (micPulse) micPulse.classList.add('hidden');
+      if (micTimer) micTimer.classList.add('hidden');
+      if (livePreview) livePreview.textContent = statusMessage || 'Kayıt Whisper AI ile çözümleniyor. Öğrenci, toplam puan ve soru puanları hazırlanıyor…';
+    } else if (active) {
+      if (micBtn) {
+        micBtn.disabled = false;
+        micBtn.setAttribute('aria-label', 'Kaydı durdur ve Whisper’a gönder');
+        micBtn.title = 'Kaydı bitir ve Whisper AI’ya gönder';
+        micBtn.innerHTML = stopIcon;
+        micBtn.classList.remove('opacity-70', 'cursor-wait', 'bg-indigo-600', 'hover:bg-indigo-700');
         micBtn.classList.add('bg-red-500', 'hover:bg-red-600', 'animate-pulse');
-        micBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
       }
-      if (micStatus) {
-        micStatus.textContent = this.micEngine === 'groq'
-          ? '🟢 Dinliyor... (Whisper AI Aktif)'
-          : '🟢 Mikrofon Açık & Dinliyor (Web Mic)';
-      }
+      if (micStatus) micStatus.textContent = 'Kayıt alınıyor — bitirmek için düğmeye basın';
+      if (micLabel) micLabel.textContent = 'Kaydı bitir ve gönder';
+      if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
       if (micPulse) micPulse.classList.remove('hidden');
+      if (micTimer) micTimer.classList.remove('hidden');
+      if (livePreview) livePreview.textContent = 'Bir öğrencinin okul numarasını, toplam puanını ve soru puanlarını sırayla söyleyin.';
     } else {
       if (micBtn) {
+        micBtn.disabled = false;
+        micBtn.setAttribute('aria-label', 'Ses kaydını başlat');
+        micBtn.title = 'Kaydı başlat; bitince tekrar tıklayarak Whisper’a gönder';
+        micBtn.innerHTML = micIcon;
+        micBtn.classList.remove('opacity-70', 'cursor-wait');
         micBtn.classList.remove('bg-red-500', 'hover:bg-red-600', 'animate-pulse');
         micBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
       }
-      if (micStatus) micStatus.textContent = 'Mikrofon Kapalı (Başlatmak İçin Tıklayın)';
+      if (micStatus) micStatus.textContent = 'Kayda hazır';
+      if (micLabel) micLabel.textContent = 'Kaydı başlat';
+      if (micDot) micDot.className = 'inline-block w-2.5 h-2.5 rounded-full bg-slate-400';
       if (micPulse) micPulse.classList.add('hidden');
-      if (livePreview) livePreview.textContent = 'Mikrofon kapalı. Okumaya başlamak için mikrofon butonuna basın.';
+      if (micTimer) {
+        micTimer.classList.add('hidden');
+        micTimer.textContent = '00:00';
+      }
+      if (livePreview) livePreview.textContent = 'Kaydı başlatın, bir öğrencinin okul numarasını, toplam puanını ve soru puanlarını söyleyin. Kaydı durdurunca Whisper metne çevirip öğrenciyi tabloya ekler.';
     }
   }
 
