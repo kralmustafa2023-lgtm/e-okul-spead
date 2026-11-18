@@ -1220,7 +1220,6 @@ class EOkulSpeadApp {
     if (!shouldContinue()) return '';
     const mimeType = audioBlob.type || this.mediaRecorderMimeType || 'audio/webm';
     const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
-    const questionCount = Number(this.settings.questionCount);
     const createFormData = () => {
       const form = new FormData();
       form.append('file', audioBlob, `audio.${ext}`);
@@ -1228,7 +1227,7 @@ class EOkulSpeadApp {
       form.append('temperature', '0');
       form.append('language', 'tr');
       if (promptMode === 'context') {
-        form.append('prompt', `Türkçe sınav notu diktesi; ${this.settings.recordStudentCount} öğrenci, okul numaraları, toplam puanlar ve ${questionCount} soru puanları.`);
+        form.append('prompt', 'Türkçe sınav notu diktesi; öğrenci numaraları, toplam puanlar ve soru puanları.');
       }
       form.append('response_format', 'json');
       return form;
@@ -1559,13 +1558,16 @@ class EOkulSpeadApp {
     if (!Number.isInteger(expectedStudentCount) || expectedStudentCount < 1 || expectedStudentCount > 60) {
       return { ok: false, message: 'Bu kayıttaki öğrenci sayısını 1 ile 60 arasında seçin.' };
     }
-    if (parsedStudents.length !== expectedStudentCount) {
+    if (parsedStudents.length < expectedStudentCount) {
+      const detectedStudentCount = parsedStudents.length;
       return {
         ok: false,
-        message: `Bu kayıtta ${expectedStudentCount} öğrenci bekleniyordu, ${parsedStudents.length} grup bulundu. Hiçbiri eklenmedi; kaydı tekrar deneyin.`
+        message: `Bu kayıt için ${expectedStudentCount} öğrenci bekleniyor ancak ${detectedStudentCount} grup bulundu. Hiçbiri eklenmedi; kaydı tekrar deneyin.`
       };
     }
-    const labeledQuestionCounts = parsedStudents.map(parsed => {
+    const ignoredExtraGroupCount = parsedStudents.length - expectedStudentCount;
+    const expectedStudents = parsedStudents.slice(0, expectedStudentCount);
+    const labeledQuestionCounts = expectedStudents.map(parsed => {
       if (!parsed.isLabeled || !parsed.questionScoresMap) return null;
       const questionIndices = Object.keys(parsed.questionScoresMap)
         .map(Number)
@@ -1584,7 +1586,7 @@ class EOkulSpeadApp {
 
     const seenStudentNumbers = new Set();
     const students = [];
-    for (const parsed of parsedStudents) {
+    for (const parsed of expectedStudents) {
       if (!Number.isSafeInteger(parsed.studentNo) || parsed.studentNo <= 0) {
         return { ok: false, message: 'Öğrenci numarası tanınmayan bir grup var. Kaydı tekrar deneyin.' };
       }
@@ -1628,7 +1630,13 @@ class EOkulSpeadApp {
     if (canInferQuestionCount && inferredQuestionCount !== this.settings.questionCount) {
       this.updateQuestionCount(inferredQuestionCount);
     }
-    return { ok: true, students };
+    if (ignoredExtraGroupCount > 0 && students.some(student => !student.entry.totalsMatch)) {
+      return {
+        ok: false,
+        message: 'Whisper beklenenden fazla grup buldu ve puan toplamları uyuşmuyor. Yanlış kayıt oluşmaması için hiçbir öğrenci eklenmedi; kaydı tekrar deneyin.'
+      };
+    }
+    return { ok: true, students, ignoredExtraGroupCount };
   }
 
   async transcribeOneShotRecording(audioBlob) {
@@ -1701,9 +1709,17 @@ class EOkulSpeadApp {
 
       const mismatchedTotals = parsed.students.filter(student => !student.entry.totalsMatch).length;
       finalPreview = `${parsed.students.length} öğrenci kaydedildi.`;
+      if (parsed.ignoredExtraGroupCount > 0) {
+        finalPreview += ` Whisper'ın bulduğu ${parsed.ignoredExtraGroupCount} fazla grup eklenmedi.`;
+      }
       if (mismatchedTotals > 0) {
         finalPreview += ` ${mismatchedTotals} öğrencide söylenen toplam ile soru puanları uyuşmuyor; tabloyu kontrol edin.`;
-        this.showToast(`${parsed.students.length} öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.`, 'warning');
+        const extraGroupMessage = parsed.ignoredExtraGroupCount > 0
+          ? ` ${parsed.ignoredExtraGroupCount} fazla grup eklenmedi.`
+          : '';
+        this.showToast(`${parsed.students.length} öğrenci kaydedildi; ${mismatchedTotals} toplam puanı uyuşmuyor.${extraGroupMessage}`, 'warning');
+      } else if (parsed.ignoredExtraGroupCount > 0) {
+        this.showToast(`${parsed.students.length} öğrenci kaydedildi. ${parsed.ignoredExtraGroupCount} fazla grup eklenmedi.`, 'warning');
       } else {
         this.showToast(`${parsed.students.length} öğrenci başarıyla tabloya eklendi veya güncellendi.`, 'success');
       }
