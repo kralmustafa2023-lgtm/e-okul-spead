@@ -40,4 +40,4 @@
 3. Sınavınızın soru sayısını seçin (örn: 6 soru).
 4. Sınav kağıtlarını okumaya başlayın!
 
-Whisper AI, tüm cihazlarda ortak çalışması için Groq anahtarını tarayıcıdan değil Vercel sunucu ortamındaki `GROQ_API_KEY` değişkeninden kullanır. Anahtarı kaynak koda veya GitHub'a eklemeyin. Yerel statik açılışta Whisper yerine **Web Mic** motorunu kullanın; Whisper uç noktası Vercel API işlevi ve sunucu değişkeni gerektirir.
+Whisper AI, Vercel sunucu ortamındaki `GROQ_API_KEY` anahtarını kullanır; isteğe bağlı `GROQ_API_KEY_BACKUP` birincil anahtar başarısız olduğunda denenir. Oturum açmış öğretmenler panelden bu tarayıcı için kişisel birincil ve yedek Groq anahtarı da ayarlayabilir; anahtarlar tarayıcıda saklanıp doğrudan Groq'ya gönderilir. Anahtarları kaynak koda veya GitHub'a eklemeyin. Yerel statik açılışta Whisper yerine **Web Mic** motorunu kullanın; sunucu Whisper uç noktası Vercel API işlevi gerektirir.

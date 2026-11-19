@@ -42,6 +42,11 @@ class EOkulSpeadApp {
     // SES MOTORU: 'groq' (Groq Whisper-large-v3) veya 'web' (Tarayıcı Web Speech API)
     this.micEngine = localStorage.getItem('eokul_spead_mic_engine') || 'groq';
     this.groqModel = 'whisper-large-v3';
+    this.groqApiKeyOwnerUid = '';
+    this.groqApiKeyStorageKey = '';
+    this.groqApiKeySettingsEnabled = false;
+    this.groqApiKey = '';
+    this.groqBackupApiKey = '';
     this.oneShotRecorder = null;
     this.oneShotChunks = [];
     this.oneShotStream = null;
@@ -90,6 +95,86 @@ class EOkulSpeadApp {
     this.updateEngineUI();
     this.setupEventListeners();
     this.updateBookmarkletLink();
+  }
+
+  enableGroqApiKeySettings(uid) {
+    if (!uid) return;
+    this.groqApiKeyOwnerUid = uid;
+    this.groqApiKeyStorageKey = `eokul_spead_groq_keys_${uid}`;
+    this.groqApiKeySettingsEnabled = true;
+
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.groqApiKeyStorageKey) || '{}');
+      this.groqApiKey = typeof saved.primary === 'string' ? saved.primary : '';
+      this.groqBackupApiKey = typeof saved.backup === 'string' ? saved.backup : '';
+    } catch (error) {
+      this.groqApiKey = '';
+      this.groqBackupApiKey = '';
+      console.warn('Groq anahtarları okunamadı:', error);
+    }
+
+    const primaryInput = document.getElementById('groq-primary-api-key');
+    const backupInput = document.getElementById('groq-backup-api-key');
+    const status = document.getElementById('groq-key-status');
+    if (primaryInput) primaryInput.value = this.groqApiKey;
+    if (backupInput) backupInput.value = this.groqBackupApiKey;
+    if (status) {
+      status.textContent = this.groqApiKey || this.groqBackupApiKey
+        ? 'Kişisel anahtarlar hazır. Birincil başarısız olursa yedek denenir.'
+        : 'Kişisel anahtar girilmedi. Sunucu anahtarı kullanılacak.';
+    }
+  }
+
+  saveGroqApiKeys() {
+    if (!this.groqApiKeySettingsEnabled || !this.groqApiKeyStorageKey) return;
+    const primaryInput = document.getElementById('groq-primary-api-key');
+    const backupInput = document.getElementById('groq-backup-api-key');
+    const status = document.getElementById('groq-key-status');
+    const primary = (primaryInput?.value || '').trim();
+    const backup = (backupInput?.value || '').trim();
+    const isValidKey = key => !key || (key.startsWith('gsk_') && key.length >= 20);
+
+    if (!isValidKey(primary) || !isValidKey(backup)) {
+      if (status) status.textContent = 'Groq anahtarları gsk_ ile başlamalı. Değeri kontrol edip tekrar girin.';
+      this.showToast('Groq API anahtarlarından biri geçersiz görünüyor.', 'warning');
+      return;
+    }
+    if (!primary && !backup) {
+      if (status) status.textContent = 'Anahtarları kaldırmak için Sil düğmesini kullanın.';
+      this.showToast('En az bir Groq API anahtarı girin.', 'warning');
+      return;
+    }
+
+    try {
+      localStorage.setItem(this.groqApiKeyStorageKey, JSON.stringify({ primary, backup }));
+    } catch (error) {
+      if (status) status.textContent = 'Tarayıcı anahtarları saklayamadı. Depolama ayarlarını kontrol edin.';
+      this.showToast('API anahtarları bu tarayıcıda saklanamadı.', 'error');
+      return;
+    }
+
+    this.groqApiKey = primary;
+    this.groqBackupApiKey = backup;
+    if (status) status.textContent = 'Anahtarlar kaydedildi. Birincil başarısız olursa yedek otomatik denenir.';
+    this.showToast('Whisper API anahtarları kaydedildi.', 'success');
+  }
+
+  clearGroqApiKeys() {
+    if (!this.groqApiKeySettingsEnabled || !this.groqApiKeyStorageKey) return;
+    this.groqApiKey = '';
+    this.groqBackupApiKey = '';
+    try {
+      localStorage.removeItem(this.groqApiKeyStorageKey);
+    } catch (error) {
+      console.warn('Groq anahtarları tarayıcıdan silinemedi:', error);
+    }
+    const primaryInput = document.getElementById('groq-primary-api-key');
+    const backupInput = document.getElementById('groq-backup-api-key');
+    const status = document.getElementById('groq-key-status');
+    if (primaryInput) primaryInput.value = '';
+    if (backupInput) backupInput.value = '';
+    if (status) status.textContent = 'Kişisel anahtarlar silindi. Sunucu anahtarı kullanılacak.';
+    this.showToast('Kişisel Whisper anahtarları silindi.', 'info');
   }
 
   loadFromStorage() {
@@ -1293,47 +1378,92 @@ class EOkulSpeadApp {
       return form;
     };
 
-    const user = window.db?.auth?.currentUser;
-    const idToken = user ? await user.getIdToken() : '';
-    if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
-    if (!shouldContinue()) return '';
-    const url = '/api/transcriptions';
-    const headers = { 'Authorization': 'Bearer ' + idToken };
-
-    const maxAttempts = 2;
     let response;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      if (!shouldContinue()) return '';
-      try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers,
-          body: createFormData(),
-          signal
-        });
-      } catch (fetchError) {
-        if (signal?.aborted || fetchError.name === 'AbortError') throw fetchError;
+    const personalKeys = this.groqApiKeySettingsEnabled
+      ? [...new Set([this.groqApiKey, this.groqBackupApiKey].filter(Boolean))]
+      : [];
+
+    if (personalKeys.length > 0) {
+      const url = 'https://api.groq.com/openai/v1/audio/transcriptions';
+      const shouldUseBackup = status => [401, 403, 408, 429, 498].includes(status) || status >= 500;
+
+      for (let keyIndex = 0; keyIndex < personalKeys.length; keyIndex++) {
         if (!shouldContinue()) return '';
-        if (attempt < maxAttempts) {
+        try {
+          response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + personalKeys[keyIndex] },
+            body: createFormData(),
+            signal
+          });
+        } catch (fetchError) {
+          if (signal?.aborted || fetchError.name === 'AbortError') throw fetchError;
+          if (!shouldContinue()) return '';
+          if (keyIndex < personalKeys.length - 1) continue;
+
+          const details = fetchError.message || fetchError.name || 'bağlantı hatası';
+          const networkError = new Error(`Whisper sunucu bağlantısı kurulamadı (${details}).`);
+          networkError.code = 'WHISPER_NETWORK_ERROR';
+          throw networkError;
+        }
+
+        if (!response.ok && shouldUseBackup(response.status) && keyIndex < personalKeys.length - 1) {
+          if (response.body) await response.body.cancel().catch(() => {});
+          continue;
+        }
+        if (response.ok && keyIndex > 0) {
+          const keyStatus = document.getElementById('groq-key-status');
+          if (keyStatus) keyStatus.textContent = 'Birincil anahtar yanıt vermedi; yedek anahtar kullanıldı.';
+        }
+        break;
+      }
+    } else {
+      const user = window.db?.auth?.currentUser;
+      const idToken = user ? await user.getIdToken() : '';
+      if (!idToken) throw new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.');
+      if (!shouldContinue()) return '';
+      const url = '/api/transcriptions';
+      const headers = { 'Authorization': 'Bearer ' + idToken };
+
+      const maxAttempts = 2;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (!shouldContinue()) return '';
+        try {
+          response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: createFormData(),
+            signal
+          });
+        } catch (fetchError) {
+          if (signal?.aborted || fetchError.name === 'AbortError') throw fetchError;
+          if (!shouldContinue()) return '';
+          if (attempt < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 700 * attempt));
+            continue;
+          }
+
+          const details = fetchError.message || fetchError.name || 'bağlantı hatası';
+          const networkError = new Error(`Whisper sunucu bağlantısı kurulamadı (${details}).`);
+          networkError.code = 'WHISPER_NETWORK_ERROR';
+          throw networkError;
+        }
+
+        if (response.status === 404) {
+          throw new Error('Whisper sunucu uç noktası bulunamadı. Projeyi Vercel üzerinden açın.');
+        }
+
+        if (response.ok && response.headers.get('X-Whisper-Key-Fallback') === 'backup') {
+          const keyStatus = document.getElementById('groq-key-status');
+          if (keyStatus) keyStatus.textContent = 'Sunucudaki birincil anahtar yanıt vermedi; yedek anahtar kullanıldı.';
+        }
+
+        if ((response.status === 429 || response.status >= 500) && attempt < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 700 * attempt));
           continue;
         }
-
-        const details = fetchError.message || fetchError.name || 'bağlantı hatası';
-        const networkError = new Error(`Whisper sunucu bağlantısı kurulamadı (${details}).`);
-        networkError.code = 'WHISPER_NETWORK_ERROR';
-        throw networkError;
+        break;
       }
-
-      if (url === '/api/transcriptions' && response.status === 404) {
-        throw new Error('Whisper sunucu uç noktası bulunamadı. Projeyi Vercel üzerinden açın.');
-      }
-
-      if ((response.status === 429 || response.status >= 500) && attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 700 * attempt));
-        continue;
-      }
-      break;
     }
 
     if (!shouldContinue()) return '';

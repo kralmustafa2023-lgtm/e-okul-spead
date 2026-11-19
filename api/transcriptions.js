@@ -1,5 +1,28 @@
 const FIREBASE_PROJECT_ID = 'kimyalab-d5009';
 const GROQ_TRANSCRIPTIONS_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const MAX_AUDIO_REQUEST_BYTES = 4_000_000;
+
+function shouldTryBackupKey(status) {
+  return [401, 403, 408, 429, 498].includes(status) || status >= 500;
+}
+
+async function readRequestBody(req) {
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const incomingChunk of req) {
+    const chunk = Buffer.isBuffer(incomingChunk) ? incomingChunk : Buffer.from(incomingChunk);
+    totalBytes += chunk.length;
+    if (totalBytes <= MAX_AUDIO_REQUEST_BYTES) chunks.push(chunk);
+  }
+
+  if (totalBytes > MAX_AUDIO_REQUEST_BYTES) {
+    const error = new Error('Ses kaydı izin verilen boyutu aşıyor.');
+    error.code = 'AUDIO_REQUEST_TOO_LARGE';
+    throw error;
+  }
+
+  return Buffer.concat(chunks, totalBytes);
+}
 
 function readFirebaseTokenClaims(token) {
   try {
@@ -44,8 +67,10 @@ module.exports = async function transcriptionsHandler(req, res) {
     return res.status(405).json({ error: { message: 'Yalnızca POST isteği destekleniyor.' } });
   }
 
-  const groqApiKey = process.env.GROQ_API_KEY;
-  if (!groqApiKey) {
+  const groqApiKeys = [process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_BACKUP]
+    .map(key => typeof key === 'string' ? key.trim() : '')
+    .filter((key, index, keys) => key && keys.indexOf(key) === index);
+  if (groqApiKeys.length === 0) {
     return res.status(503).json({ error: { message: 'Whisper sunucu anahtarı henüz ayarlanmamış.' } });
   }
 
@@ -72,7 +97,7 @@ module.exports = async function transcriptionsHandler(req, res) {
   }
 
   const contentLength = Number(req.headers['content-length'] || 0);
-  if (contentLength > 4_000_000) {
+  if (contentLength > MAX_AUDIO_REQUEST_BYTES) {
     return res.status(413).json({ error: { message: 'Ses kaydı izin verilen boyutu aşıyor.' } });
   }
 
@@ -80,26 +105,50 @@ module.exports = async function transcriptionsHandler(req, res) {
   req.on('aborted', () => controller.abort());
 
   try {
-    const headers = {
-      Authorization: `Bearer ${groqApiKey}`,
-      'Content-Type': contentType
-    };
-    if (req.headers['content-length']) headers['Content-Length'] = req.headers['content-length'];
+    // Keep one bounded copy so the same multipart audio body can be retried with the backup key.
+    const audioBody = await readRequestBody(req);
+    if (controller.signal.aborted) return;
 
-    const groqResponse = await fetch(GROQ_TRANSCRIPTIONS_URL, {
-      method: 'POST',
-      headers,
-      body: req,
-      duplex: 'half',
-      signal: controller.signal
-    });
+    let groqResponse;
+    let usedBackupKey = false;
+    for (let keyIndex = 0; keyIndex < groqApiKeys.length; keyIndex++) {
+      const headers = {
+        Authorization: `Bearer ${groqApiKeys[keyIndex]}`,
+        'Content-Type': contentType,
+        'Content-Length': String(audioBody.length)
+      };
+
+      try {
+        groqResponse = await fetch(GROQ_TRANSCRIPTIONS_URL, {
+          method: 'POST',
+          headers,
+          body: audioBody,
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (error.name === 'AbortError' || controller.signal.aborted) return;
+        if (keyIndex < groqApiKeys.length - 1) continue;
+        throw error;
+      }
+
+      if (!groqResponse.ok && shouldTryBackupKey(groqResponse.status) && keyIndex < groqApiKeys.length - 1) {
+        if (groqResponse.body) await groqResponse.body.cancel().catch(() => {});
+        continue;
+      }
+      usedBackupKey = groqResponse.ok && keyIndex > 0;
+      break;
+    }
 
     const responseBody = await groqResponse.text();
     res.status(groqResponse.status);
     res.setHeader('Content-Type', groqResponse.headers.get('content-type') || 'application/json');
+    if (usedBackupKey) res.setHeader('X-Whisper-Key-Fallback', 'backup');
     return res.send(responseBody);
   } catch (error) {
-    if (error.name === 'AbortError') return;
+    if (error.name === 'AbortError' || controller.signal.aborted) return;
+    if (error.code === 'AUDIO_REQUEST_TOO_LARGE') {
+      return res.status(413).json({ error: { message: error.message } });
+    }
     console.error('Groq Whisper proxy hatası:', error);
     return res.status(502).json({ error: { message: 'Whisper servisine şu anda ulaşılamıyor.' } });
   }
