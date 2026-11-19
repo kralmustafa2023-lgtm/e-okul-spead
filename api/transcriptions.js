@@ -110,7 +110,6 @@ module.exports = async function transcriptionsHandler(req, res) {
     if (controller.signal.aborted) return;
 
     let groqResponse;
-    let usedBackupKey = false;
     for (let keyIndex = 0; keyIndex < groqApiKeys.length; keyIndex++) {
       const headers = {
         Authorization: `Bearer ${groqApiKeys[keyIndex]}`,
@@ -135,14 +134,12 @@ module.exports = async function transcriptionsHandler(req, res) {
         if (groqResponse.body) await groqResponse.body.cancel().catch(() => {});
         continue;
       }
-      usedBackupKey = groqResponse.ok && keyIndex > 0;
       break;
     }
 
     const responseBody = await groqResponse.text();
     res.status(groqResponse.status);
     res.setHeader('Content-Type', groqResponse.headers.get('content-type') || 'application/json');
-    if (usedBackupKey) res.setHeader('X-Whisper-Key-Fallback', 'backup');
     return res.send(responseBody);
   } catch (error) {
     if (error.name === 'AbortError' || controller.signal.aborted) return;
