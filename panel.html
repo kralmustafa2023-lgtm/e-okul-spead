@@ -98,10 +98,10 @@
           <!-- Başlat / durdur ses kaydı -->
           <div class="relative flex-shrink-0 flex flex-col items-center">
             <div id="mic-pulse-ring" class="hidden absolute -inset-2 bg-red-500/30 rounded-full mic-glowing-ring"></div>
-            <button id="mic-toggle-btn" type="button" aria-label="Mikrofonu aç" title="Sürekli mikrofon dinlemesini başlat" class="relative z-10 w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition-all transform active:scale-95 group">
+            <button id="mic-toggle-btn" type="button" aria-label="Ses kaydını başlat" title="Kaydı başlat; bitince tekrar tıklayarak Whisper'a gönder" class="relative z-10 w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition-all transform active:scale-95 group">
               <svg id="mic-button-icon" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
             </button>
-            <span id="mic-button-label" class="mt-2 text-xs font-semibold text-indigo-100">Mikrofonu aç</span>
+            <span id="mic-button-label" class="mt-2 text-xs font-semibold text-indigo-100">Kaydı başlat</span>
           </div>
 
           <!-- Canlı Durum ve Bilgi -->
@@ -122,7 +122,7 @@
             <!-- Kayıt durumu ve tanınan metin -->
             <div class="bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl p-3 space-y-2">
               <p id="speech-live-preview" class="text-sm text-slate-300 min-h-[1.75rem] flex items-center justify-center sm:justify-start" aria-live="polite">
-                Mikrofonu bir kez açın. Bir öğrencinin numarasını ve puanlarını okuyup “başla” deyin; o öğrencinin notları hemen eklensin, mikrofon dinlemeyi sürdürsün.
+                Etiket kullanmadan yalnızca sayıları sırayla söyleyin. Seçilen soru sayısına göre her öğrenci için okul numarası, toplam puan ve soru puanları gruplanır.
               </p>
               <button id="retry-whisper-btn" type="button" onclick="app.retryFailedWhisperRecording()" class="hidden min-h-11 px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-300/30 rounded-lg text-sm font-semibold text-amber-100 transition" aria-live="polite">
                 Son kaydı Whisper’a tekrar gönder
@@ -185,7 +185,7 @@
               <span>➔</span>
               <span id="schema-q-count-badge" class="bg-indigo-900/70 px-2 py-0.5 rounded font-mono border border-indigo-700/50">Soru Puanları (4 adet)</span>
               <span>➔</span>
-              <span class="bg-emerald-900/70 text-emerald-300 px-2 py-0.5 rounded font-semibold border border-emerald-700/50">“Başla” Komutuyla Öğrenci Kaydedilir</span>
+              <span class="bg-emerald-900/70 text-emerald-300 px-2 py-0.5 rounded font-semibold border border-emerald-700/50">Tam Öğrenci Grupları Otomatik Kaydedilir</span>
             </div>
           </div>
         </div>
@@ -389,8 +389,8 @@
           </div>
           <h4 class="text-base font-bold text-slate-800">Henüz Öğrenci Notu Eklenmedi</h4>
           <p class="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
-            Mikrofonu açın, her seferinde tek öğrencinin puanlarını okuyup “başla” deyin:<br>
-            <span class="font-mono text-indigo-600 font-semibold">"18 15 4 3 5 3, başla; 24 18 5 4 4 5, başla"</span>
+            Mikrofon butonuna basın ve sırayla tüm öğrencileri durmadan okuyun:<br>
+            <span class="font-mono text-indigo-600 font-semibold">"18 15 4 3 5 3 24 18 5 4 4 5..."</span>
           </p>
         </div>
       </div>
